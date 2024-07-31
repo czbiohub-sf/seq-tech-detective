@@ -115,7 +115,7 @@ def format_seq_detective(spec, indices: list[dict[str, list[RegionFingerprint]]]
                     len_range = f"{{{region.len_range[0]:>2}, {region.len_range[1]:>2}}}"
                     s += f"\t\t\t{{ {ofs_range}, {len_range}, {exp_read}, {seq_type:>10}, {seq_dir}, \"{region.sequence}\"}},\n"
 
-    s += """\t\t\t{ 0 }\n\t}"""
+    s += """\t\t\t{ 0 }\n\t\t}\n\t}"""
     return s
 
 if __name__ == "__main__":
