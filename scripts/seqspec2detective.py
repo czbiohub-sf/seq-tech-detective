@@ -1,10 +1,13 @@
+#!/usr/bin/env python3
 import argparse
 import io
 import gzip
 from pathlib import Path
+import re
+import yaml
+
 from seqspec.Assay import Assay
 from seqspec.Region import Onlist
-import yaml
 
 class RegionFingerprint:
     def __init__(self,
@@ -31,9 +34,11 @@ def load_spec(spec: str):
         data = yaml.load(f, yaml.Loader)
         return data
 
-
 def setup_args(parser):
-    parser.add_argument("yaml", help="Sequencing specification yaml file")
+    parser.add_argument(
+        "yaml",
+        nargs="+",
+        help="Sequencing specification yaml file[s]")
     parser.add_argument(
         "-o",
         metavar="OUT",
@@ -41,16 +46,34 @@ def setup_args(parser):
         type=str,
         default=None,
     )
-
+    parser.add_argument(
+        "-i", "--header",
+        help=("Add struct header import to output"),
+        action='store_true',
+        default=False,
+    )
+    parser.add_argument(
+        "-f", "--footer",
+        help=("Add struct closing bracket to output"),
+        action='store_true',
+        default=False,
+    )
     return parser
 
 
 def validate_index_args(parser, args):
-    file = args.yaml
+    files = args.yaml
     out = args.o
 
-    spec = load_spec(file)
-    x = run(spec)
+    x: str = ""
+    if args.header:
+        x = "#include \"fingerprint_info.h\"\n\nstruct sd_library_fingerprint ext_fingerprints[] = {\n"
+    for file in files:
+        spec = load_spec(file)
+        x += run(spec)
+    if args.footer:
+        x = x + "};"
+        
     if out:
         with Path(out).open("w") as f:
             print(x, file=f)
@@ -102,20 +125,36 @@ def get_index(spec, read_id) -> dict[str, list[tuple[object, str, str, tuple[int
     return {read_id: vecs}
     
 
+def sanitize(s: str):
+    # -./_  0-9 A-Z a-z
+    return re.sub('[^-./_ 0-9A-Za-z]','', s)
+
+def sanitize_validate_filename(s: str):
+    # forbid .. traversal and / root at start of file path
+    s = sanitize(s)
+    if s.find("../") >= 0:
+        raise ValueError("inappropriate relative path traversal: {0}".format(s))
+    if s.find("/") == 0:
+        raise ValueError("absolute paths are disallowed: {0}".format(s))
+    return s
+
+
 def format_seq_detective(spec, indices: list[dict[str, list[RegionFingerprint]]]):
-    s = f"""\t{{\n\t\t\"{spec.name}\", {{\n"""
+    spec_name = sanitize(spec.name)
+    s = f"""\t{{\n\t\t\"{spec_name}\", {{\n"""
     for idx, read in enumerate(indices):
         for read, regions in read.items():
             for region in regions:
                 if region.sequence_type in ["fixed", "onlist"]:
-                    seq_type = {"fixed": "SEQ_FIXED", "onlist": "SEQ_ONLIST", "random": "SEQ_RANDOM"}[region.sequence_type]
-                    seq_dir = {"pos": "SEQ_FWD", "neg": "SEQ_REV"}[region.read_strand]
-                    exp_read = region.read_id[0:2]
+                    seq_type = {"fixed": "SD_FIXED", "onlist": "SD_ONLIST", "random": "SD_RANDOM"}[region.sequence_type]
+                    seq_dir = {"pos": "SD_FWD", "neg": "SD_REV"}[region.read_strand]
+                    exp_read = sanitize("SD_" + region.read_id[0:2])
+                    sequence = sanitize_validate_filename(region.sequence)
                     ofs_range = f"{{{region.ofs_range[0]:>2}, {region.ofs_range[1]:>2}}}"
                     len_range = f"{{{region.len_range[0]:>2}, {region.len_range[1]:>2}}}"
-                    s += f"\t\t\t{{ {ofs_range}, {len_range}, {exp_read}, {seq_type:>10}, {seq_dir}, \"{region.sequence}\"}},\n"
+                    s += f"\t\t\t{{ {ofs_range}, {len_range}, {exp_read}, {seq_type:>10}, {seq_dir}, \"{sequence}\"}},\n"
 
-    s += """\t\t\t{ 0 }\n\t\t}\n\t}"""
+    s += """\t\t\t{ 0 }\n\t\t}\n\t},\n"""
     return s
 
 if __name__ == "__main__":
