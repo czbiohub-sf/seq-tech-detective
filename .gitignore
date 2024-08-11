@@ -1,3 +1,13 @@
+# build output
+build
+subprojects/tracy
+
+#
+src/test
+
+# IDE, temp files, etc.
 *.callgrind
 *.prof
 *.o
+*.pyc
+.vscode

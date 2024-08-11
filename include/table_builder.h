@@ -80,6 +80,8 @@ uint32_t seq_to_int32(const char seq_p[16])
 //  - convert to u16
 
 const size_t KBITS = 5, KMASK = 0x1F;
+inline void set_bit(uint32_t *table, const uint32_t key);
+inline int get_bit(const uint32_t *table, const uint32_t key);
 inline void set_bit(uint32_t *table, const uint32_t key)
 {
 	table[key >> KBITS] |= (1 << (key & KMASK));
@@ -95,14 +97,14 @@ uint32_t *build_set(FILE *barcode_file, uint32_t width)
 {
 	const size_t MAX_ENTRIES = (1UL << width) - 1;
 	const size_t SIZEB = (MAX_ENTRIES >> KBITS) * sizeof(uint32_t);
-	uint32_t *table = aligned_alloc(128, SIZEB);
+	uint32_t *table = (uint32_t *)aligned_alloc(128, SIZEB);
 	size_t buf_len = (width / 2) + 2; // need space for newbuf + nul
-	char *buf = aligned_alloc(128, buf_len);
+	char *buf = (char *)aligned_alloc(128, buf_len);
 	ssize_t nread;
 	if (width <= 16) {
 		while ((nread = getline(&buf, &buf_len, barcode_file)) >= 6) {
 			memset(&buf[nread-1], 0, buf_len - (nread-1)); //NOLINT
-			set_bit(table, seq_to_int16(buf));
+			set_bit(table, (const uint32_t)seq_to_int16(buf));
 		}
 	} else {
 		while ((nread = getline(&buf, &buf_len, barcode_file)) >= 6) {
