@@ -10,4 +10,4 @@ cmake --build profiler/build --config Release --parallel
 
 configuring (first cmake command) with `-DNO_PARALLEL_STL=1 -DLEGACY=1` may help on WSL.
 
-and will be located at `profiler/build/tracy-profiler`
+binary will be located at `profiler/build/tracy-profiler`

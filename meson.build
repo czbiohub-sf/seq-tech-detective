@@ -52,4 +52,6 @@ seq_detective = executable(
     dependencies: deps,
 )
 
-#run_target('lint',
+#if get_option('test')
+#    subdir('test')
+#endif
