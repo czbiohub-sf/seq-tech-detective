@@ -4,6 +4,8 @@ subprojects/tracy
 
 #
 src/test
+fastq
+cb_*.txt
 
 # IDE, temp files, etc.
 *.callgrind
