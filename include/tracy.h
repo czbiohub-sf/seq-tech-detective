@@ -2,7 +2,7 @@
 #pragma once
 
 #ifdef TRACY_ENABLE
-#include "public/tracy/TracyC.h"
+#include "tracy/TracyC.h"
 #else
 #define TracyCZoneS(ctx, d, active) 
 #define TracyCZoneEnd(ctx)

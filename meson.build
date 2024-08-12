@@ -1,37 +1,57 @@
-project('seq-detective', 'c',
-  version : '0.1.0',
-  default_options : ['warning_level=3', 'c_std=gnu2x'])
-add_project_arguments(['-fopenmp', '-gsplit-dwarf'], language : ['c'])
-add_project_link_arguments(['-fopenmp'], language : ['c', 'cpp'])
-
-main_src = files('src/main.c')
-
-#tracy_dep = dependency('tracy', required: get_option('tracy'))
-tracy_inc = include_directories('3rdparty/tracy')
-tracy_src = files('3rdparty/tracy/public/TracyClient.cpp')
-
-inc = []
-src = [main_src]
+project(
+    'seq-detective',
+    ['c', 'cpp'],
+    version: '0.1.0',
+    license: 'BSD3',
+    default_options: [
+        'buildtype=release',
+        'warning_level=everything',
+        'c_std=gnu2x',
+    ],
+)
 exename = 'seq-detective'
 
+add_project_arguments(['-fopenmp', '-gsplit-dwarf'], language: ['c'])
+add_project_link_arguments(['-fopenmp'], language: ['c', 'cpp'])
+
+# dependencies: openmp
+openmp_dep = dependency('openmp')
+deps = [openmp_dep]
+
+# sources
+main_src = files('src/main.c')
+src = [main_src]
+
+seqdetective_headers = include_directories('.', 'include')
+inc = [seqdetective_headers]
+
 if get_option('tracy').enabled()
-    add_languages('cpp')
-    add_project_arguments(['-DTRACY_ENABLE=1', '-DTRACY_NO_EXIT=1'],
-                          language: ['c', 'cpp'])
-    add_project_arguments(['-fno-omit-frame-pointer'],
-                          language: ['c'])
-    add_project_link_arguments(['-rdynamic', '-lstdc++'],
-                               language : ['c'])
-    add_project_link_arguments(['-lm', '-lstdc++', '-pthread', '-ldl'],
-                               language : ['cpp'])
-    src += tracy_src
-    inc += tracy_inc
     exename = 'seq-detective-tracy'
+    tracy_dep = dependency(
+        'tracy',
+        static: true,
+        default_options: ['warning_level=0', 'tracy:no_exit=true'],
+    )
+    deps += [tracy_dep]
+
+    add_project_arguments(['-DTRACY_ENABLE=1'], language: ['c', 'cpp'])
+    add_project_arguments(['-fno-omit-frame-pointer'], language: ['c'])
+    add_project_link_arguments(['-rdynamic', '-lstdc++'], language: ['c'])
+    add_project_link_arguments(['-ldl'], language: ['c', 'cpp'])
+
+    if get_option('buildtype') != 'debugoptimized'
+        warning('Profiling builds should set --buildtype=debugoptimized')
+    endif
 endif
 
-seq_detective = executable(exename,
-                           src,
-                           include_directories: inc)
+seq_detective = executable(
+    exename,
+    src,
+    gnu_symbol_visibility: 'default',
+    include_directories: inc,
+    dependencies: deps,
+)
 
-#run_target('lint',
-#           command : 'clang-tidy src/*.[ch] --header-filter=".*" -- -isystem /usr/lib/clang/16.0.6/include/ $(CLANG_CFLAGS)')
+#if get_option('test')
+#    subdir('test')
+#endif

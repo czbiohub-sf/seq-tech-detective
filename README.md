@@ -5,10 +5,16 @@ without prior knowledge of the source.  This is useful when scraping public sequ
 where metadata availability is inconsistent.
 
 # Installation
+## prerequisites
+ - [meson](https://mesonbuild.com/Getting-meson.html)
+  - check your distro's package manager, `sudo apt install meson`
+ 	- or from pip: `pip3 install --user meson`
+ - OpenMP
 ```
 git clone https://github.com/czbiohub-sf/seq-tech-detective --depth=1
 cd seq-tech-detective
-make -j2
+meson setup build
+meson compile -C build
 ```
 TODO: move lint check and switch instructions to meson?
 TODO: how are we distributing barcode lists?
@@ -16,7 +22,7 @@ TODO: how are we distributing barcode lists?
 # Usage
 
 ```
-./bin/seq-detective file.fastq
+./build/seq-detective file.fastq
 ```
 
 # How It Works

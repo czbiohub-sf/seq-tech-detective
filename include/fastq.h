@@ -68,6 +68,82 @@ void run_checks(size_t seq_len, const char seq[150], struct res *result, const u
 }
 
 
+// serial reading
+struct res fq_read(int fd, const uint32_t *bc_10x_v2)
+{
+	TracyCZoneS(ctx, 10, 1);
+	FILE *fp = fdopen(fd, "r");
+	struct res result = { 0, 0, 0, 0 };
+
+	// 4096 should be plenty enough for any short read, right ?
+	size_t buflen = 4096;
+	char *buf = aligned_alloc(ALIGN, 4096);
+	if (!buf)
+		abort_msg("malloc failed");
+
+	size_t have = 0; // bytes in buffer
+	size_t ofs = 0; // position in file
+	char seq[151];
+	size_t seq_len = 0;
+	size_t qual_len = 0;
+	fastq_state state = ID_START;
+	
+	// TODO: assuming canonical one-line-per-field FASTQ
+	// declare this restriction, or remove it if proven useful
+	while ((have = getline(&buf, &buflen, fp)) > 0) {
+		ofs += have;
+		switch (state)
+		{
+		case START_SKIP:         // skip until \n @
+		case ID_START:           // read @ or fail
+			state = ID_START;
+			if (buf[0] != '@')
+				goto ILLEGAL;
+			state = SEQ;
+			break;
+		case SEQ:                // read [ACTGN] until \n
+			// processing happens here
+			seq_len = (size_t)have;
+			// copy up to 150 bytes of sequence
+			size_t seq_buf_len = seq_len < 150 ? seq_len : 150;
+			memcpy(seq, &buf[0], seq_buf_len);
+			// TODO: these may want to be buffered
+			run_checks(seq_buf_len, seq, &result, bc_10x_v2);
+
+			// increment total read length
+			result.len_reads += seq_len;
+			state = ID2_START;
+			break;
+		case ID2_START:          // read + or fail
+			if (buf[0] != '+')
+				goto ILLEGAL;
+			state = ID2;
+			break;
+		case ID2:                // skip until \n
+			state = QUAL;
+			break;
+		case QUAL:               // read exactly SEQ_LEN chars -> \n
+			qual_len = have;
+			result.num_reads++;  // increment read count
+			state = ID_START;
+			break;
+		default:;
+		ILLEGAL:
+			// illegal fastq_state ?
+			abort_msg("bad fastq"); // TODO: report error position
+		}
+	}
+	
+	printf("reads: %li\navg len: %li\n10v2 hit rate: %f\n%f polyt hit rate\n",
+		   result.num_reads,
+		   result.len_reads / result.num_reads,
+		   (float)result.bc_hits / (float)result.num_reads,
+		   (float)result.polyt_hits / (float)result.num_reads);
+
+	TracyCZoneEnd(ctx)
+	return result;
+}
+
 
 // parallel reading
 // based on https://github.com/expr-fi/fastlwc/blob/master/fastlwc-mt.c
