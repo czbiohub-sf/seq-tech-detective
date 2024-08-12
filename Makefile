@@ -15,7 +15,7 @@ profile:
 
 # clean:
 clean: $(BUILDDIR)
-	meson compile --clean $(BUILDDIR)
+	meson compile -C $(BUILDDIR) --clean 
 	rm -r $(BUILDDIR)
 
 # linters

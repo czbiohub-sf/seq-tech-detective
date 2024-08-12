@@ -5,7 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "library_layout_info.h"
+#include "fingerprint_info.h"
 
 enum BARCODE_LIST
 {
