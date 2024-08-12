@@ -25,6 +25,9 @@ src = [main_src]
 seqdetective_headers = include_directories('.', 'include')
 inc = [seqdetective_headers]
 
+# shared object
+subdir('resources')
+
 if get_option('tracy').enabled()
     exename = 'seq-detective-tracy'
     tracy_dep = dependency(

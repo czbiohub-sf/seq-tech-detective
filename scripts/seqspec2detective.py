@@ -152,9 +152,9 @@ def format_seq_detective(spec, indices: list[dict[str, list[RegionFingerprint]]]
                     sequence = sanitize_validate_filename(region.sequence)
                     ofs_range = f"{{{region.ofs_range[0]:>2}, {region.ofs_range[1]:>2}}}"
                     len_range = f"{{{region.len_range[0]:>2}, {region.len_range[1]:>2}}}"
-                    s += f"\t\t\t{{ {ofs_range}, {len_range}, {exp_read}, {seq_type:>10}, {seq_dir}, \"{sequence}\"}},\n"
+                    s += f"\t\t\t{{ {exp_read}, {seq_dir}, {seq_type:>10}, {ofs_range}, {len_range}, \"{sequence}\"}},\n"
 
-    s += """\t\t\t{ 0 }\n\t\t}\n\t},\n"""
+    s += """\t\t\t{ SD_NONE }\n\t\t}\n\t},\n"""
     return s
 
 if __name__ == "__main__":
