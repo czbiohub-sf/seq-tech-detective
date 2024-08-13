@@ -3,11 +3,7 @@ project(
     ['c', 'cpp'],
     version: '0.1.0',
     license: 'BSD3',
-    default_options: [
-        'buildtype=release',
-        'warning_level=everything',
-        'c_std=gnu2x',
-    ],
+    default_options: ['buildtype=release', 'warning_level=3', 'c_std=gnu2x'],
 )
 exename = 'seq-detective'
 
@@ -19,7 +15,12 @@ openmp_dep = dependency('openmp')
 deps = [openmp_dep]
 
 # sources
-main_src = files('src/main.c')
+main_src = files(
+    'src/main.c',
+    'src/fastq.c',
+    'src/filereader.c',
+    'src/table_builder.c',
+)
 src = [main_src]
 
 seqdetective_headers = include_directories('.', 'include')

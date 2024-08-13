@@ -1,29 +1,19 @@
 #pragma once
-#include <stdio.h>
-#include <unistd.h>
+#include <sys/types.h>
 
 // expected read file - but we mostly ignore this
-enum sd_read_type
-{
-	SD_NONE = 0, SD_R1, SD_R2, SD_I1, SD_I2
-};
+enum sd_read_type { SD_NONE = 0, SD_R1, SD_R2, SD_I1, SD_I2 };
 
-enum sd_read_dir
-{
-	SD_DIR_UNK, SD_FWD, SD_REV
-};
+enum sd_read_dir { SD_DIR_UNK, SD_FWD, SD_REV };
 
-enum sd_seq_type
-{
-	SD_RANDOM, SD_FIXED, SD_ONLIST
-};
+enum sd_seq_type { SD_RANDOM, SD_FIXED, SD_ONLIST };
 
 // ofs.min, ofs.max, seq.min, seq.max, R1, type, dir, sequence
 typedef struct fingerprint {
 	enum sd_read_type read; // "expected" readfile, usually ignored
 	enum sd_read_dir  dir;  // forward/reverse read implies transform
 	enum sd_seq_type  type; // tagged non-union for sequence
-	
+
 	struct {
 		off_t min;
 		off_t max;
@@ -32,15 +22,16 @@ typedef struct fingerprint {
 		size_t min;
 		size_t max;
 	} len;
-	const char  *sequence;
+	const char *sequence;
 } sd_fingerprint;
 
 struct sd_library_fingerprint {
-	const char  *name;
+	const char    *name;
 	sd_fingerprint entries[6];
 };
 
 
+// clang-format off
 struct sd_library_fingerprint fingerprints[] = {
 	// library name
 	//		  read,  dir,     type,      ofs,      len,      sequence source
@@ -49,7 +40,7 @@ struct sd_library_fingerprint fingerprints[] = {
 			{ SD_R1, SD_FWD,  SD_ONLIST, { 0,  0}, {16, 16}, "cb_10x_737K-august-2016.txt"},
 			//{ SD_R1, SD_FWD, SD_RANDOM, {16, 16}, { 8,  8} }, // umi
 			{ SD_I1, SD_FWD,  SD_ONLIST, { 0,  0}, { 8,  8}, "index7_onlist.txt"},
-			{ SD_NONE }
+			{ SD_NONE },
 		}
 	},
 	{
@@ -59,35 +50,36 @@ struct sd_library_fingerprint fingerprints[] = {
 			{ SD_R2, SD_REV,   SD_FIXED, { 8, 11}, {22, 22}, "AAGGCGTCACAAGCAATCACTC"},
 			{ SD_R2, SD_REV,  SD_ONLIST, {30, 33}, { 8,  8}, "cb_indrop_bc2.txt"},
 			//{ SD_R2, SD_REV, SD_RANDOM, { 38, 41}, { 8,  8} }, // umi
-			{ SD_NONE }
+			{ SD_NONE },
 		}
 	},
 };
+// clang-format on
 static const int NUM_LAYOUTS = sizeof(fingerprints) / sizeof(struct sd_library_fingerprint);
 
 
-	/*
-	 * { // Microwell-seq: 6bp BC1 + 15bp LN1 + 6bp BC2 + 15bp LN2 + 6bp BC3 + 6bp UMI
-	 * 	"Microwell-seq", {
-	 * 		//{ SD_R1, SD_FWD, SD_ONLIST, { 0,  0}, { 6,  6}, SEQ_ONLIST, NULL }, // plate 1 cell barcode
-	 * 		{ SD_R1, SD_FWD, SEQ_FIXED, { 6,  6}, {15, 15}, "CGACTCACTACAGGG" }, // linker 1
-	 * 		//{ SD_R1, SD_FWD, SEQ_ONLIST, {21, 21}, { 6,  6}, NULL }, // plate 2 cell barcode
-	 * 		{ SD_R1, SD_FWD, SEQ_FIXED, {27, 27}, {15, 15}, "TCGGTGACACGATCG" }, // linker 2
-	 * 		//{ SD_R1, SD_FWD, SEQ_ONLIST, {42, 42}, { 6,  6},  NULL }, // plate 3 cell barcode
-	 * 		{ 0 }
-	 * 	}
-	 * },
-	 */
-	/*
-	 * {
-	 * 	"inDropsv3", { // TODO: SD_R1 and R4(SD_I2) ?
-	 * 		{ SD_R1, { 0,  0}, { 8, 11}, SEQ_ONLIST, "indrops_onlist2.txt" }, // cell barcode 2
-	 * 		//{ SD_I2, { 0,  0}, { 8, 11}, SEQ_ONLIST, "indrops_onlist2.txt" }, // cell barcode 2
-	 * 		//{ SD_R1, { 8, 11}, { 8,  8}, SEQ_RANDOM }, // umi
-	 * 		{ 0 }
-	 * 	}
-	 * },
-	 */
+/*
+ * { // Microwell-seq: 6bp BC1 + 15bp LN1 + 6bp BC2 + 15bp LN2 + 6bp BC3 + 6bp UMI
+ * 	"Microwell-seq", {
+ * 		//{ SD_R1, SD_FWD, SD_ONLIST, { 0,  0}, { 6,  6}, SEQ_ONLIST, NULL }, // plate 1 cell
+ * barcode { SD_R1, SD_FWD, SEQ_FIXED, { 6,  6}, {15, 15}, "CGACTCACTACAGGG" }, // linker 1
+ * 		//{ SD_R1, SD_FWD, SEQ_ONLIST, {21, 21}, { 6,  6}, NULL }, // plate 2 cell barcode
+ * 		{ SD_R1, SD_FWD, SEQ_FIXED, {27, 27}, {15, 15}, "TCGGTGACACGATCG" }, // linker 2
+ * 		//{ SD_R1, SD_FWD, SEQ_ONLIST, {42, 42}, { 6,  6},  NULL }, // plate 3 cell barcode
+ * 		{ 0 }
+ * 	}
+ * },
+ */
+/*
+ * {
+ * 	"inDropsv3", { // TODO: SD_R1 and R4(SD_I2) ?
+ * 		{ SD_R1, { 0,  0}, { 8, 11}, SEQ_ONLIST, "indrops_onlist2.txt" }, // cell barcode 2
+ * 		//{ SD_I2, { 0,  0}, { 8, 11}, SEQ_ONLIST, "indrops_onlist2.txt" }, // cell barcode 2
+ * 		//{ SD_R1, { 8, 11}, { 8,  8}, SEQ_RANDOM }, // umi
+ * 		{ 0 }
+ * 	}
+ * },
+ */
 
 
 // auto *x = malloc(sizeof(struct library_layout));
@@ -207,7 +199,7 @@ static const int NUM_LAYOUTS = sizeof(fingerprints) / sizeof(struct sd_library_f
 // I2: 8 or 10 bp               third plate well barcode
 
 
-//https://vectorbase.org/vectorbase/service/record-types/dfile/searches/GetFileRecordsByID/reports/zippedFiles
+// https://vectorbase.org/vectorbase/service/record-types/dfile/searches/GetFileRecordsByID/reports/zippedFiles
 
 
 // 10x:

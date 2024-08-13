@@ -1,31 +1,23 @@
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdnoreturn.h>
+#include <string.h>
 #include <unistd.h>
 
-#include "tracy.h"
-#include "table_builder.h"
-#include "filereader.h"
 #include "fastq.h"
+#include "filereader.h"
+#include "table_builder.h"
+#include "tracy.h"
 
 
-noreturn void usage()
+noreturn static void usage()
 {
 	// TODO
 	fprintf(stderr, "usage:\n");
 	exit(EXIT_FAILURE);
-}
-
-// testing fn
-const uint32_t *build_10x_v2_bc_set()
-{
-	const uint32_t bc_len = 16;
-	FILE *f_bc_list = fopen(BARCODE_MAP[chem2bc[CH_10X_RNA_V2]], "r");
-	posix_fadvise(fileno(f_bc_list), 0, 0, POSIX_FADV_SEQUENTIAL | POSIX_FADV_WILLNEED);
-	const uint32_t *bc_set = build_set(f_bc_list, bc_len * 2);
-	posix_fadvise(fileno(f_bc_list), 0, 0, POSIX_FADV_DONTNEED);
-
-	return bc_set;
 }
 
 int main(int argc, char **argv)
@@ -57,6 +49,6 @@ int main(int argc, char **argv)
 	if (fd != STDIN_FILENO)
 		close(fd);
 
-	TracyCZoneEnd(ctx)
+	TracyCZoneEnd(ctx);
 	return 0;
 }
