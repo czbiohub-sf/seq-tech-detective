@@ -33,3 +33,4 @@ lint: lint_py lint_sh lint_c
 # format
 fmt:
 	meson fmt -i
+	ninja -C $(BUILDDIR) clang-format
