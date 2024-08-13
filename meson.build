@@ -16,9 +16,9 @@ deps = [openmp_dep]
 
 # sources
 main_src = files(
-    'src/main.c',
     'src/fastq.c',
     'src/filereader.c',
+    'src/main.c',
     'src/table_builder.c',
 )
 src = [main_src]
@@ -27,7 +27,9 @@ seqdetective_headers = include_directories('.', 'include')
 inc = [seqdetective_headers]
 
 # shared object
-subdir('resources')
+if get_option('ext_specs').enabled()
+    subdir('resources')
+endif
 
 if get_option('tracy').enabled()
     exename = 'seq-detective-tracy'

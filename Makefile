@@ -9,13 +9,17 @@ $(NAME): $(BUILDDIR)
 $(BUILDDIR):
 	meson setup $(BUILDDIR) --reconfigure
 
+ext-specs:
+	meson setup $(BUILDDIR) --reconfigure -Dext_specs=enabled
+	meson compile -C $(BUILDDIR)
+
 profile:
 	meson setup $(BUILDDIR) --reconfigure -Dtracy_enable=enabled
 	meson compile -C $(BUILDDIR)
 
 # clean:
 clean: $(BUILDDIR)
-	meson compile -C $(BUILDDIR) --clean 
+	meson compile -C $(BUILDDIR) --clean
 	rm -r $(BUILDDIR)
 
 # linters
@@ -33,4 +37,4 @@ lint: lint_py lint_sh lint_c
 # format
 fmt:
 	meson fmt -i
-	ninja -C $(BUILDDIR) clang-format
+	meson --internal clangformat . $(BUILDDIR)

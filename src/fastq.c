@@ -121,11 +121,12 @@ struct res fq_read(int fd, const uint32_t *bc_10x_v2)
 			result.num_reads++; // increment read count
 			state = ID_START;
 			break;
+		ILLEGAL:
 		case ILLEGAL:
 		case ID:
-		default:;
-		ILLEGAL:
+		default:
 			// illegal fastq_state ?
+			fprintf(stderr, "fastq error around %zi\n", ofs);
 			abort_msg("bad fastq"); // TODO: report error position
 		}
 	}
