@@ -1,1 +1,2 @@
+option('ext_specs', type: 'feature', value: 'disabled')
 option('tracy', type: 'feature', value: 'disabled')
