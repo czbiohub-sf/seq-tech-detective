@@ -1,21 +1,25 @@
 NAME=seq-detective
 BUILDDIR=build
+PREFIXARG=--prefix $(PWD)/seq-detective
 
 .PHONY: $(NAME) profile clean lint lint_c lint_py lint_sh fmt
 
 $(NAME): $(BUILDDIR)
 	meson compile -C $(BUILDDIR)
+	meson install -C $(BUILDDIR)
 
 $(BUILDDIR):
-	meson setup $(BUILDDIR) --reconfigure
+	meson setup $(BUILDDIR) --reconfigure $(PREFIXARG) $(CFGFLAGS)
 
-ext-specs:
-	meson setup $(BUILDDIR) --reconfigure -Dext_specs=enabled
-	meson compile -C $(BUILDDIR)
+ext-specs: CFGFLAGS += -Dext_specs=enabled
+ext-specs: $(BUILDDIR) $(NAME)
 
-profile:
-	meson setup $(BUILDDIR) --reconfigure -Dtracy_enable=enabled
-	meson compile -C $(BUILDDIR)
+profile: CFGFLAGS += -Dtracy_enable=enabled
+profile: $(BUILDDIR) $(NAME)
+
+install: CFGFLAGS += -Dext_specs=enabled PREFIXARG =
+install: $(BUILDDIR) $(NAME)
+
 
 # clean:
 clean: $(BUILDDIR)
@@ -36,5 +40,5 @@ lint: lint_py lint_sh lint_c
 
 # format
 fmt:
-	meson fmt -i
+	meson fmt -r -i
 	meson --internal clangformat . $(BUILDDIR)

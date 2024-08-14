@@ -1,3 +1,4 @@
+#include <config.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
@@ -24,6 +25,7 @@ int main(int argc, char **argv)
 {
 	TracyCZoneS(ctx, 10, 1);
 
+	printf("%s", PKGDATADIR);
 	// TODO: this goes in a big list of checks we want to run
 	const uint32_t *bc_10x_v2 = build_10x_v2_bc_set();
 

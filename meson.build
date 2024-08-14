@@ -14,6 +14,16 @@ add_project_link_arguments(['-fopenmp'], language: ['c', 'cpp'])
 openmp_dep = dependency('openmp')
 deps = [openmp_dep]
 
+# conf
+pkgdatadir = join_paths(
+    [get_option('prefix'), get_option('datadir'), meson.project_name()],
+)
+conf = configuration_data()
+conf.set_quoted('PACKAGE_NAME', meson.project_name())
+conf.set_quoted('VERSION', meson.project_version())
+conf.set_quoted('PKGDATADIR', join_paths(get_option('prefix'), pkgdatadir))
+configure_file(output: 'config.h', configuration: conf)
+
 # sources
 main_src = files(
     'src/fastq.c',
@@ -56,6 +66,7 @@ seq_detective = executable(
     gnu_symbol_visibility: 'default',
     include_directories: inc,
     dependencies: deps,
+    install: true,
 )
 
 #if get_option('test')
