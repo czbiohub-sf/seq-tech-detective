@@ -1,2 +1,3 @@
 option('ext_specs', type: 'feature', value: 'disabled')
 option('tracy', type: 'feature', value: 'disabled')
+option('log_use_color', type: 'boolean', value: true)

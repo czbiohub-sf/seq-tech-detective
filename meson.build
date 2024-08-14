@@ -22,12 +22,15 @@ conf = configuration_data()
 conf.set_quoted('PACKAGE_NAME', meson.project_name())
 conf.set_quoted('VERSION', meson.project_version())
 conf.set_quoted('PKGDATADIR', join_paths(get_option('prefix'), pkgdatadir))
+conf.set10('LOG_USE_COLOR', get_option('log_use_color'))
 configure_file(output: 'config.h', configuration: conf)
 
 # sources
 main_src = files(
     'src/fastq.c',
     'src/filereader.c',
+    'src/fingerprint_info.c',
+    'src/log.c',  # rxi
     'src/main.c',
     'src/table_builder.c',
 )
@@ -36,10 +39,8 @@ src = [main_src]
 seqdetective_headers = include_directories('.', 'include')
 inc = [seqdetective_headers]
 
-# shared object
-if get_option('ext_specs').enabled()
-    subdir('resources')
-endif
+# technology fingerprint resources + shared object
+subdir('resources')
 
 if get_option('tracy').enabled()
     exename = 'seq-detective-tracy'

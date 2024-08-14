@@ -26,7 +26,7 @@ endforeach
 install_data(onlists)
 
 if get_option('ext_specs').enabled()
-    # seqspec fingerprint data
+# seqspec fingerprint data
     converter = find_program('../scripts/seqspec2detective.py')
     fingerprints_c = custom_target(
         'fingerprints.c',
