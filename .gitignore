@@ -1,6 +1,7 @@
 # build output
 build
 subprojects/tracy
+seq-detective
 
 #
 src/test
