@@ -14,3 +14,4 @@ cb_*.txt
 *.o
 *.pyc
 .vscode
+.cache

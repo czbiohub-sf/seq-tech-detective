@@ -1,2 +1,2 @@
-Checks: '-clang-diagnostic-gnu*,-clang-diagnostic-padded,-clang-diagnostic-unused-macros,-clang-diagnostic-missing-field-initializers,-Wc++-compat'
+Checks: '-clang-diagnostic-gnu*,-clang-diagnostic-padded,-clang-diagnostic-unused-macros,-clang-diagnostic-missing-field-initializers,-Wc++-compat,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling'
 HeaderFilterRegex: '.*'

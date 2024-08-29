@@ -14,7 +14,7 @@ $(BUILDDIR):
 ext-specs: CFGFLAGS += -Dext_specs=enabled
 ext-specs: $(BUILDDIR) $(NAME)
 
-profile: CFGFLAGS += -Dtracy_enable=enabled
+profile: CFGFLAGS += -Dtracy=enabled
 profile: $(BUILDDIR) $(NAME)
 
 install: CFGFLAGS += -Dext_specs=enabled PREFIXARG =

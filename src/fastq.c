@@ -10,7 +10,8 @@
 #include <unistd.h>
 
 #include "filereader.h"
-#include "table_builder.h" // seq_to_int16, 32
+#include "fingerprint_info.h"
+#include "table_builder.h" // seq_to_int16, 32, int64_to_seq
 #include "tracy.h"
 
 // need to read next block into buffer for boundary-crossing reads
@@ -36,37 +37,70 @@ static void add_res(struct res *out, struct res const *in)
 	out->len_reads  = out->len_reads + in->len_reads;
 	out->num_reads  = out->num_reads + in->num_reads;
 	out->polyt_hits = out->polyt_hits + in->polyt_hits;
-	out->bc_hits    = out->bc_hits + in->bc_hits;
 	TracyCZoneEnd(ctx);
 }
 #pragma omp declare reduction(+ : struct res : add_res(&omp_out, &omp_in)) \
 	initializer(omp_priv = {0, 0, 0, 0})
 
+// it is illegal to call this function without exiting
+void print_all_fp_hits(sd_fp_hits **fp_hits)
+{
+	for ( ; *fp_hits != NULL; ++fp_hits) {
+		print_fp_hits(*fp_hits);
+	}
+}
+
+// for a single check, we need to:
+// look over a range of positions
+//   for each one, try all key lengths
+//     look up in table/match against fixed sequence
+
 // run through registered location + sequence checks and update
 // TODO: this is just a proof of concept version of checks for now
-void run_checks(size_t seq_len, const char seq[150], struct res *result, const uint32_t *bc_table)
+void run_checks(size_t seq_len, const char seq[150], struct res *result, sd_fp_hits **fp_hits)
 {
-	// for now, just checking 10x barcode list
-	// eventually use the information in library_layout_info.h
-	if (seq_len >= 16) {
-		const uint32_t key = seq_to_int32(seq);
-		if (get_bit(bc_table, key))
-			result->bc_hits++;
-
-		if (seq_len >= 16 + 10 + 8) {
-			// TODO: this isn't good enough for poly-T
-			if (seq_to_int16(&seq[26]) == seq_to_int16("TTTTTTTT"))
-				result->polyt_hits++;
+	for ( ; *fp_hits != NULL; ++fp_hits) {
+		sd_fp_hits *fp_hit = *fp_hits;
+		// fixed location mode;
+		for (sd_fp_ofs_node *ofs = fp_hit->ofs; ofs != NULL; ofs = ofs->next) {
+			// fixed location mode
+			int start = ofs->ofs.min;
+			int end = ofs->ofs.max;
+			// if seq_len can't accomodate the sequence position, skip this one
+			if ((long)seq_len < end + fp_hit->len.max)
+				continue;
+			for (int pos = start; pos <= end; ++pos) {
+				// TODO: which end do we need to mask from again?
+				// for variable-length keys, try all mask lengths
+				for (int i = fp_hit->len.max; i >= (int)fp_hit->len.min; --i) {
+					const uint32_t key = seq_to_int(seq + pos, i, fp_hit->dir == SD_REV);
+					size_t *hitcount = &fp_hit->hits[pos];
+					switch (fp_hit->type) {
+					case SD_ONLIST:
+						if (get_bit(fp_hit->bc_set, key))
+#pragma omp atomic
+							(*hitcount)++;
+						break;
+					case SD_FIXED:
+						if (fp_hit->seq_int == key)
+#pragma omp atomic
+							(*hitcount)++;
+						break;
+					case SD_RANDOM: // we shouldn't get this.
+						break;
+					}
+				}
+			}
 		}
 	}
 }
 
 // serial reading
-struct res fq_read(int fd, const uint32_t *bc_10x_v2)
+struct res fq_read(int fd, sd_fp_hits **fp_hits)
 {
 	TracyCZoneS(ctx, 10, 1);
-	struct res result = {0, 0, 0, 0};
-
+	struct res result = {0, 0, 0, NULL};
+	
 	// 4096 should be plenty enough for any short read, right ?
 	size_t  buflen = 4096;
 	ssize_t have   = 0; // bytes in buffer
@@ -100,7 +134,7 @@ struct res fq_read(int fd, const uint32_t *bc_10x_v2)
 			size_t seq_buf_len = seq_len < 150 ? seq_len : 150;
 			memcpy(seq, &buf[0], seq_buf_len);
 			// TODO: these may want to be buffered
-			run_checks(seq_buf_len, seq, &result, bc_10x_v2);
+			run_checks(seq_buf_len, seq, &result, fp_hits);
 
 			// increment total read length
 			result.len_reads += seq_len;
@@ -132,13 +166,13 @@ struct res fq_read(int fd, const uint32_t *bc_10x_v2)
 	}
 
 	if (result.num_reads > 0) {
-		printf("reads: %zi\navg len: %zi\n10v2 hit rate: %f\n%f polyt hit rate\n",
+		printf("reads: %zi\navg len: %zi\n%f polyt hit rate\n",
 		       result.num_reads,
 		       result.len_reads / result.num_reads,
-		       (double)result.bc_hits / (double)result.num_reads,
 		       (double)result.polyt_hits / (double)result.num_reads);
+		print_all_fp_hits(result.fp_hits);
 	} else {
-		printf("reads: 0\navg len: 0\n10v2 hit rate: 0\n0 polyt hit rate\n");
+		printf("reads: 0\navg len: 0\n0 polyt hit rate\n");
 	}
 
 	TracyCZoneEnd(ctx);
@@ -148,13 +182,13 @@ struct res fq_read(int fd, const uint32_t *bc_10x_v2)
 
 // parallel reading
 // based on https://github.com/expr-fi/fastlwc/blob/master/fastlwc-mt.c
-struct res read_mt(int fd, off_t cur, off_t len, const uint32_t *bc_10x_v2)
+struct res read_mt(int fd, off_t cur, off_t len, sd_fp_hits **fp_hits)
 {
 	TracyCZoneS(ctx, 10, 1);
 	// how many bufsize blocks
 	const size_t blocks = ((size_t)len + BLKSIZE - 1) / BLKSIZE;
 
-	struct res result = {0, 0, 0, 0};
+	struct res result = {0, 0, 0, NULL};
 
 #pragma omp parallel if (blocks > 1) reduction(+ : result)
 	{
@@ -244,7 +278,7 @@ struct res read_mt(int fd, off_t cur, off_t len, const uint32_t *bc_10x_v2)
 						// copy up to 150 bytes of sequence
 						memcpy(seq, &buf[seq_s], seq_len < 150 ? seq_len : 150);
 						// TODO: these may want to be buffered
-						run_checks(seq_len, seq, &result, bc_10x_v2);
+						run_checks(seq_len, seq, &result, fp_hits);
 
 						// increment total read length
 						result.len_reads += seq_len;
@@ -294,13 +328,17 @@ struct res read_mt(int fd, off_t cur, off_t len, const uint32_t *bc_10x_v2)
 				TracyCZoneEnd(ctx)
 			} while (have < BLKSIZE && bytes_left);
 		} // end block for
+		
+		free(buf);
 	}     // end parallel
 
-	printf("reads: %zi\navg len: %zi\n10v2 hit rate: %f\n%f polyt hit rate\n",
+	printf("reads: %zi\navg len: %zi\n%f polyt hit rate\n",
 	       result.num_reads,
 	       result.len_reads / result.num_reads,
-	       (double)result.bc_hits / (double)result.num_reads,
 	       (double)result.polyt_hits / (double)result.num_reads);
+
+	result.fp_hits = fp_hits;
+	print_all_fp_hits(result.fp_hits);
 
 	TracyCZoneEnd(ctx);
 	return result;

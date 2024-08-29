@@ -3,11 +3,11 @@ project(
     ['c', 'cpp'],
     version: '0.1.0',
     license: 'BSD3',
-    default_options: ['buildtype=release', 'warning_level=3', 'c_std=gnu2x'],
+    default_options: ['buildtype=debugoptimized', 'warning_level=3', 'c_std=gnu2x'],
 )
 exename = 'seq-detective'
 
-add_project_arguments(['-fopenmp', '-gsplit-dwarf'], language: ['c'])
+add_project_arguments(['-g3', '-fopenmp'], language: ['c'])
 add_project_link_arguments(['-fopenmp'], language: ['c', 'cpp'])
 
 # dependencies: openmp

@@ -7,7 +7,9 @@
 #include <stdnoreturn.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 
+#include "log.h"
 #include "fastq.h"
 #include "filereader.h"
 #include "table_builder.h"
@@ -25,10 +27,12 @@ int main(int argc, char **argv)
 {
 	TracyCZoneS(ctx, 10, 1);
 
-	printf("%s", PKGDATADIR);
-	// TODO: this goes in a big list of checks we want to run
-	const uint32_t *bc_10x_v2 = build_10x_v2_bc_set();
-
+	clock_t tstart = clock();
+	sd_fp_hits **fp_hits = load_fingerprints();
+	clock_t tloadedfp = clock();
+	
+	log_info("finished loading fingerprints in %.3f ms", 1000.0 * (tloadedfp - tstart) / CLOCKS_PER_SEC);
+	
 	// TODO: do we need to set _FILE_OFFSET_BITS ?
 	if (argc < 1)
 		usage();
@@ -46,7 +50,9 @@ int main(int argc, char **argv)
 	end = lseek(fd, 0, SEEK_END);
 
 	posix_fadvise(fd, cur, end, POSIX_FADV_SEQUENTIAL | POSIX_FADV_WILLNEED);
-	read_mt(fd, cur, end, bc_10x_v2);
+	read_mt(fd, cur, end, fp_hits);
+
+	delete_fingerprints(fp_hits);
 
 	if (fd != STDIN_FILENO)
 		close(fd);
