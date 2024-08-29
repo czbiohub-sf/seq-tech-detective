@@ -1,48 +1,265 @@
 #include "table_builder.h"
 
+#include <fcntl.h>
+#include <linux/limits.h>
+#include <search.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-// is this table useless? we can only call the reverse
-const enum BARCODE_LIST chem2bc[] = {
-	[CH_10X_RNA_V1]  = BC_10x_737K_april_2014_rc,
-	[CH_10X_RNA_V2]  = BC_10x_737K_august_2016,
-	[CH_10X_RNA_V3]  = BC_10x_3M_february_2018,
-	[CH_10X_RNA_5]   = BC_10x_737K_august_2016,
-	[CH_10X_ATAC_V1] = BC_10x_737K_arc_v1,
-	[CH_10X_CRATAC]  = BC_10x_737_cratac_v1,
-	[CH_10X_LT]      = BC_10x_9K_LT_march_2021,
-};
-
-const char *BARCODE_MAP[] = {
-	[BC_10x_737K_august_2016] = "resources/cell-barcodes.10x.737K-august-2016.txt",
-};
+#include "tracy.h"
+#include "config.h"
+#include "fingerprint_info.h"
+#include "log.h"
 
 
-// testing fn
-#include <fcntl.h>
-const uint32_t *build_10x_v2_bc_set(void)
+// TODO: tables shared between assays, but we also need to not run them multiple times.
+// and possibly to count as hits for all.  i.e. maybe we need another level of indirection
+// around onlist hits.
+static sd_fp_hits **fingerprint_ids;
+
+// fingerprint hit-related library functions
+
+// debug print sd_fp_hits fields
+// caller must free returned pointer!
+char *repr_fp_hit(sd_fp_hits *fph)
 {
-	FILE *f_bc_list = fopen(BARCODE_MAP[chem2bc[CH_10X_RNA_V2]], "r");
+	const char fmt[] = "fp_hits { name: %s, dir: %c, type: %c, id: %d, "
+		"ofs: %p {%zd, %zd}, len: {%zi, %zi}, seq: %s }";
+	char *buf = NULL;
+	char *seq = int64_to_seq(fph->seq_int);
+	int sz = 0;
+	for (int i = 0; i < 2; i++) {
+		if (i != 0) buf = malloc(sz);
+		sz = snprintf(buf, sz, fmt,
+					  fph->name, "UFR"[fph->dir], "RFO"[fph->type], fph->id,
+					  (void *)fph->ofs,
+					  fph->ofs == NULL ? -1 : fph->ofs->ofs.min,
+					  fph->ofs == NULL ? -1 : fph->ofs->ofs.max,
+					  fph->len.min, fph->len.max,
+					  fph->type == SD_FIXED ? seq : "(onlist)"
+			) + 1;
+	}
+	free(seq);
+	return buf;
+}
 
-	posix_fadvise(fileno(f_bc_list), 0, 0, POSIX_FADV_SEQUENTIAL | POSIX_FADV_WILLNEED);
-	const uint32_t  bc_len = 16;
-	const uint32_t *bc_set = build_set(f_bc_list, bc_len * 2);
-	posix_fadvise(fileno(f_bc_list), 0, 0, POSIX_FADV_DONTNEED);
+void dbg_log_fp_hit(sd_fp_hits *fph)
+{
+	char *msg = repr_fp_hit(fph);
+	log_trace("%s", msg);
+	free(msg);
+}
 
-	return bc_set;
+// get stringified hit counts by position in specified fingerprint counter
+// caller must free returned pointer!
+char *fp_hits_tostr(sd_fp_hits *fph)
+{
+	const int sz = 2048;
+	char *msg = malloc(sz);
+	int e;
+	int maxpos = sizeof(fph->hits) / sizeof(size_t);
+	// SEQUENCENAME: [pos: val, pos: val]
+	e = snprintf(msg, sz, "%s: [", fph->name);
+	for (int i = 0; i < maxpos; ++i) {
+		if (fph->hits[i] > 0)
+			e += snprintf(msg + e, sizeof(msg) - e, "%d: %zi, ", i, fph->hits[i]);
+	}
+	snprintf(msg + e, sizeof(msg) - e, "]");
+	return msg;
+}
+
+void print_fp_hits(sd_fp_hits *fph)
+{
+	char *msg = fp_hits_tostr(fph);
+	printf("%s\n", msg);
+	free(msg);
+}
+
+// sd_fp_hits constructor
+sd_fp_hits *init_fp_hit(const sd_fingerprint *rgn, int id, enum sd_read_dir dir)
+{
+	sd_fp_hits *fp_id = (sd_fp_hits *)malloc(sizeof(sd_fp_hits));
+	*fp_id = (sd_fp_hits) {
+        .name = rgn->sequence,
+		.dir  = dir,
+		.type = rgn->type,
+		.id   = id,
+		.len  = { .min = rgn->len.min, .max = rgn->len.max },
+        .seq_int = 0L,
+		.ofs     = (sd_fp_ofs_node *)malloc(sizeof(sd_fp_ofs_node)),
+		.hits    = {0}
+	};
+	fp_id->ofs->next = NULL;
+	fp_id->ofs->ofs.min = rgn->ofs.min;
+	fp_id->ofs->ofs.max = rgn->ofs.max;
+
+	return fp_id;
+}
+
+// add an offset to the list of expected offsets for a region
+void update_expected_ofs(sd_fp_hits *fp_id, const sd_fingerprint *rgn)
+{
+	sd_range n_ofs = rgn->ofs;
+	if (fp_id->ofs == NULL) {
+		fp_id->ofs = (sd_fp_ofs_node *)malloc(sizeof(sd_fp_ofs_node));
+		fp_id->ofs->ofs = (sd_range){ .min = n_ofs.min, .max = n_ofs.max };
+		fp_id->ofs->next = NULL;
+		return;
+	}
+	sd_fp_ofs_node *cur_ofs_node = fp_id->ofs;
+	while (cur_ofs_node != NULL && cur_ofs_node->next != NULL) {
+		sd_range cur_ofs = fp_id->ofs->ofs;
+		// expand right
+		if (cur_ofs.max >= n_ofs.min)
+			cur_ofs.max = cur_ofs.max < n_ofs.max ? n_ofs.max : cur_ofs.max;
+		// expand left
+		if (cur_ofs.min <= n_ofs.max)
+			cur_ofs.min = cur_ofs.min < n_ofs.min ? n_ofs.min : cur_ofs.min;
+		
+		if (cur_ofs.max >= n_ofs.min || cur_ofs.min <= n_ofs.max)
+			return; // updated an entry, done here
+		
+		if (cur_ofs_node->next == NULL)
+			break; // add a new offset node
+		cur_ofs_node = cur_ofs_node->next; // keep searching
+	}
+	cur_ofs_node->next = (sd_fp_ofs_node *)malloc(sizeof(sd_fp_ofs_node));
+	cur_ofs_node->next->ofs = (sd_range) { .min = n_ofs.min, .max = n_ofs.max };
+	cur_ofs_node->next->next = NULL;
+}
+
+
+
+ENTRY *get_fingerprint_id(const sd_fingerprint *rgn)
+{
+	ENTRY ol_entry;
+	ol_entry.key  = (char *)rgn->sequence;
+	ol_entry.data = NULL;
+	return hsearch(ol_entry, FIND);
+}
+
+void ll_delete(sd_fp_ofs_node *ofs)
+{
+	if (ofs->next)
+		ll_delete(ofs->next);
+	free(ofs->next);
+}
+void delete_fingerprints(sd_fp_hits **fp_hits)
+{
+	for ( ; *fp_hits != NULL; ++fp_hits) {
+		sd_fp_hits *fp_hit = *fp_hits;
+		if (fp_hit->type == SD_ONLIST)
+			free(fp_hit->bc_set);
+		ll_delete(fp_hit->ofs);
+		free(fp_hit->ofs);
+		free(fp_hit);
+	}
+}
+
+// fingerprint_ids: [fp, fp_rc, fp2, fp2_rc]
+ 
+// load all barcode tables
+sd_fp_hits **load_fingerprints(void)
+{
+	TracyCZoneS(ctx, 10, 1);
+	const size_t PATH_MX = 4096; // limits.h, sometimes
+	char         path[PATH_MX];
+	ENTRY        rgn_seq_entry, *found_rgn;
+
+	hcreate(NUM_FINGERPRINTS * 4);
+	
+	int num_fpr = 0;
+	// TODO: this can need realloc, build out real structure
+	fingerprint_ids = calloc(NUM_FINGERPRINTS * 6 * 2, sizeof(sd_fp_hits *));
+	for (int i = 0; i < NUM_FINGERPRINTS; ++i) {
+		struct sd_library_fingerprint fgpts = fingerprints[i];
+		for (sd_fingerprint *rgn = &fgpts.entries[0]; rgn->read != SD_NONE; ++rgn) {
+			found_rgn = get_fingerprint_id(rgn);
+			if (found_rgn != NULL) {
+				log_info("cached: %s R%d region %s", fgpts.name, rgn->read, rgn->sequence);
+				sd_fp_hits *fpr = (sd_fp_hits *)found_rgn->data;
+				update_expected_ofs(fpr, rgn);
+				update_expected_ofs(fingerprint_ids[fpr->id + 1], rgn); // update rc as well
+				continue;
+			}
+
+			// not in cache, create a new fp_hits struct
+			switch (rgn->type) {
+			case SD_ONLIST:
+				snprintf(path, PATH_MX, "%s/%s", PKGDATADIR, rgn->sequence);
+				FILE *onlist_fp = fopen(path, "r");
+				if (onlist_fp == NULL) {
+					log_warn("not found: %s R%d ONLIST %s", fgpts.name, rgn->read, path);
+					continue;
+				}
+
+				// onlist file is valid and new: build table and associate with fingerprint
+				log_info("found: %s R%d ONLIST %s", fgpts.name, rgn->read, rgn->sequence);
+
+				posix_fadvise(fileno(onlist_fp), 0, 0, POSIX_FADV_SEQUENTIAL | POSIX_FADV_WILLNEED);
+				// store the pointer to the newly created table
+				// TODO: build set should generate both fwd and reverse
+				fingerprint_ids[num_fpr] = init_fp_hit(rgn, num_fpr, SD_FWD);
+				fingerprint_ids[num_fpr]->bc_set = build_set(onlist_fp, rgn->len.max * 2, SD_FWD);
+				dbg_log_fp_hit(fingerprint_ids[num_fpr]);
+				++num_fpr;
+				fingerprint_ids[num_fpr] = init_fp_hit(rgn, num_fpr, SD_REV);
+				fingerprint_ids[num_fpr]->bc_set = build_set(onlist_fp, rgn->len.max * 2, SD_REV);
+				dbg_log_fp_hit(fingerprint_ids[num_fpr]);
+				++num_fpr;
+
+				posix_fadvise(fileno(onlist_fp), 0, 0, POSIX_FADV_DONTNEED);
+				fclose(onlist_fp);
+
+				rgn_seq_entry.key = (char *)rgn->sequence;
+				rgn_seq_entry.data = fingerprint_ids[num_fpr - 2];
+				hsearch(rgn_seq_entry, ENTER);
+				break;
+			case SD_FIXED:
+				log_info("found: %s R%d FIXED %s", fgpts.name, rgn->read, rgn->sequence);
+				int seq_len = strlen(rgn->sequence);
+				if (seq_len > 32)
+					log_warn("FIXME! too long linker: %s (%s)", fgpts.name, rgn->sequence);
+
+				fingerprint_ids[num_fpr] = init_fp_hit(rgn, num_fpr, SD_FWD);
+				fingerprint_ids[num_fpr]->seq_int =
+					seq_to_int(rgn->sequence, seq_len, false);
+				dbg_log_fp_hit(fingerprint_ids[num_fpr]);
+				++num_fpr;
+				fingerprint_ids[num_fpr] = init_fp_hit(rgn, num_fpr, SD_REV);
+				fingerprint_ids[num_fpr]->seq_int =
+					seq_to_int(rgn->sequence, seq_len, true);
+				dbg_log_fp_hit(fingerprint_ids[num_fpr]);
+				++num_fpr;
+				
+				rgn_seq_entry.key = (char *)rgn->sequence;
+				rgn_seq_entry.data = fingerprint_ids[num_fpr - 2];
+				hsearch(rgn_seq_entry, ENTER);
+				break;
+			case SD_RANDOM:
+				log_warn("RANDOM region on %s, R%d ignored", fgpts.name, rgn->read);
+				break;
+			default:
+				log_warn("bad region '%d' on %s, R%d ignored", rgn->type, fgpts.name, rgn->read);
+			}
+		} // foreach region in fingerprint
+	} // foreach assay fingerprint
+
+	TracyCZoneEnd(ctx);
+	return fingerprint_ids;
 }
 
 
 // A = 00 ; C = 01 ; T = 10 ; G = 11
-// this compiles to SIMD shuffles when available
+// the 32-bit version compiles to SIMD shuffles when available
 __attribute__((pure)) uint16_t seq_to_int16(const char seq_p[8])
 {
 	uint16_t result = 0;
-	for (uint16_t i = 0; i < 8; i++) {
-		result |= (uint16_t)((seq_p[i]) & 0b110) >> 1U << ((7 - i) * 2);
+	for (uint8_t i = 0; i < 8; i++) {
+		char base = (seq_p[i] >> 1U) & 0b11;
+		result |= (uint16_t)base << ((7 - i) * 2);
 	}
 	return result;
 }
@@ -50,10 +267,150 @@ __attribute__((pure)) uint16_t seq_to_int16(const char seq_p[8])
 __attribute__((pure)) uint32_t seq_to_int32(const char seq_p[16])
 {
 	uint32_t result = 0;
-	for (uint32_t i = 0; i < 16; i++) {
-		result |= (uint32_t)((seq_p[i]) & 0b110) >> 1U << ((15 - i) * 2);
+	for (uint8_t i = 0; i < 16; i++) {
+		char base = (seq_p[i] >> 1U) & 0b11;
+		result |= (uint32_t)base << ((15 - i) * 2);
 	}
 	return result;
+}
+
+__attribute__((pure)) uint64_t seq_to_int64(const char seq_p[32])
+{
+	uint64_t result = 0;
+	for (uint8_t i = 0; i < 32; i++) {
+		char base = (seq_p[i] >> 1U) & 0b11;
+		result |= (uint64_t)base << ((31 - i) * 2);
+	}
+	return result;
+}
+
+__attribute__((pure)) uint16_t seq_to_int16_rc(const char seq_p[8])
+{
+	uint16_t result = 0;
+	for (uint8_t i = 0; i < 8; i++) {
+		char base = ((seq_p[i] >> 1U) ^ 0b10) & 0b11;
+		result |= (uint16_t)base << (i * 2);
+	}
+	return result;
+}
+
+__attribute__((pure)) uint32_t seq_to_int32_rc(const char seq_p[16])
+{
+	uint32_t result = 0;
+	for (uint8_t i = 0; i < 16; i++) {
+		char base = ((seq_p[i] >> 1U) ^ 0b10) & 0b11;
+		result |= (uint32_t)base << (i * 2);
+	}
+	return result;
+}
+
+__attribute__((pure)) uint64_t seq_to_int64_rc(const char seq_p[32])
+{
+	uint64_t result = 0;
+	for (uint8_t i = 0; i < 32; i++) {
+		char base = ((seq_p[i] >> 1U) ^ 0b10) & 0b11;
+		result |= (uint64_t)base << (i * 2);
+	}
+	return result;
+}
+
+// seq_to_int with correct length dispatch and masking
+inline uint64_t seq_to_int(const char *seq_p, int len, int rc)
+{
+	if (!rc) {
+		if (len <= 8)
+			return seq_to_int16(seq_p)  & (~0UL << (16 - (len * 2)));
+		else if (len <= 16)
+			return seq_to_int32(seq_p)  & (~0UL << (32 - (len * 2)));
+		else if (len <= 32)
+			return seq_to_int64(seq_p)  & (~0UL << (64 - (len * 2)));
+		// TODO: this is either bad stopgap
+		// or an intentional behavior to be formalized.
+		return seq_to_int64(seq_p)  & (~0UL << (64 - (len * 2)));
+	} else {
+		if (len <= 8)
+			return seq_to_int16_rc(seq_p)  & ((1UL << (len * 2)) - 1);
+		else if (len <= 16)
+			return seq_to_int32_rc(seq_p)  & ((1UL << (len * 2)) - 1);
+		else if (len <= 32)
+			return seq_to_int64_rc(seq_p)  & ((1UL << (len * 2)) - 1);
+		return seq_to_int64_rc(seq_p)  & ((1UL << (len * 2)) - 1);
+	}
+}
+
+// convert bit-packed sequence <=32bp to string
+char *int64_to_seq(uint64_t s)
+{
+	char *seq = malloc(33);
+	for (int i = 31; i >= 0; i--) {
+		seq[31 - i] = "ACTG"[(s & (3L << i * 2)) >> (i * 2)];
+	}
+	seq[32] = '\0';
+	return seq;
+}
+
+
+// bitset tables
+const size_t KBITS = 5, KMASK = 0x1F;
+// bitset w/ uint32 bins setter/getter
+inline void set_bit(uint32_t *table, const uint32_t key)
+{
+	table[key >> KBITS] |= (1UL << (key & KMASK));
+}
+
+inline int get_bit(const uint32_t *table, const uint32_t key)
+{
+	return (table[key >> KBITS] >> (key & KMASK)) & 1UL;
+}
+
+// build bitset lookup tables for a given a barcode list
+uint32_t *build_set(FILE *barcode_file, uint32_t width, enum sd_read_dir dir)
+{
+	const size_t MAX_ENTRIES = (1UL << width) - 1;
+	// entries / bits-per-cell * bytes-per-cell
+	const size_t SIZEB       = (MAX_ENTRIES >> KBITS) * sizeof(uint32_t);
+	//uint32_t    *table       = (uint32_t *)aligned_alloc(128, SIZEB);
+	uint32_t    *table       = (uint32_t *)calloc(MAX_ENTRIES >> KBITS, sizeof(uint32_t));
+	//width = 1 << (32 - __builtin_clzl(width - 1));
+	size_t       buf_len     = (width / 2) + 2; // need space for newbuf + nul
+	if (width < 16)
+		buf_len = 8 + 2;
+	else if (width < 32)
+		buf_len = 16 + 2;
+	else if (width < 64)
+		buf_len = 32 + 2;
+	char        *buf         = (char *)aligned_alloc(128, buf_len);
+	ssize_t      nread;
+
+	if (width <= 16) {
+		if (dir != SD_REV) {
+			while ((nread = getline(&buf, &buf_len, barcode_file)) >= 6) {
+				memset(&buf[nread - 1], 0, buf_len - (nread - 1)); // NOLINT
+				set_bit(table, (const uint32_t)seq_to_int16(buf));
+			}
+		} else {
+			while ((nread = getline(&buf, &buf_len, barcode_file)) >= 6) {
+				memset(&buf[nread - 1], 0, buf_len - (nread - 1)); // NOLINT
+				set_bit(table, (const uint32_t)seq_to_int16_rc(buf));
+			}
+		}
+	} else {
+		if (dir != SD_REV) {
+			while ((nread = getline(&buf, &buf_len, barcode_file)) >= 6) {
+				memset(&buf[nread - 1], 0, buf_len - (nread - 1)); // NOLINT
+				set_bit(table, seq_to_int32(buf));
+			}
+		} else {
+			while ((nread = getline(&buf, &buf_len, barcode_file)) >= 6) {
+				memset(&buf[nread - 1], 0, buf_len - (nread - 1)); // NOLINT
+				set_bit(table, seq_to_int32_rc(buf));
+			}
+		}
+	}
+
+	free(buf);
+	// TODO: check and report nread == -1, nread == 0, and small positive nread
+	return table;
 }
 
 // cases:
@@ -67,41 +424,6 @@ __attribute__((pure)) uint32_t seq_to_int32(const char seq_p[16])
 //  - or   use only first 8bp?
 // barcode is 8bp
 //  - convert to u16
-
-const size_t KBITS = 5, KMASK = 0x1F;
-inline void  set_bit(uint32_t *table, const uint32_t key)
-{
-	table[key >> KBITS] |= (1UL << (key & KMASK));
-}
-
-inline int get_bit(const uint32_t *table, const uint32_t key)
-{
-	return (table[key >> KBITS] >> (key & KMASK)) & 1UL;
-}
-
-// build bitset lookup tables for a given a barcode list
-uint32_t *build_set(FILE *barcode_file, uint32_t width)
-{
-	const size_t MAX_ENTRIES = (1UL << width) - 1;
-	const size_t SIZEB       = (MAX_ENTRIES >> KBITS) * sizeof(uint32_t);
-	uint32_t    *table       = (uint32_t *)aligned_alloc(128, SIZEB);
-	size_t       buf_len     = (width / 2) + 2; // need space for newbuf + nul
-	char        *buf         = (char *)aligned_alloc(128, buf_len);
-	ssize_t      nread;
-	if (width <= 16) {
-		while ((nread = getline(&buf, &buf_len, barcode_file)) >= 6) {
-			memset(&buf[nread - 1], 0, buf_len - (nread - 1)); // NOLINT
-			set_bit(table, (const uint32_t)seq_to_int16(buf));
-		}
-	} else {
-		while ((nread = getline(&buf, &buf_len, barcode_file)) >= 6) {
-			memset(&buf[nread - 1], 0, buf_len - (nread - 1)); // NOLINT
-			set_bit(table, seq_to_int32(buf));
-		}
-	}
-	// TODO: check and report nread == -1, nread == 0, and small positive nread
-	return table;
-}
 
 
 // tables:
