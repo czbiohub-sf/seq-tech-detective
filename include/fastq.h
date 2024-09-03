@@ -6,9 +6,9 @@
 
 // result structure
 struct res {
-	size_t len_reads;
-	size_t num_reads;
-	size_t polyt_hits;
+	size_t       len_reads;
+	size_t       num_reads;
+	size_t       polyt_hits;
 	sd_fp_hits **fp_hits;
 };
 

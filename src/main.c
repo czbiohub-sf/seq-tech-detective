@@ -6,12 +6,12 @@
 #include <stdlib.h>
 #include <stdnoreturn.h>
 #include <string.h>
-#include <unistd.h>
 #include <time.h>
+#include <unistd.h>
 
-#include "log.h"
 #include "fastq.h"
 #include "filereader.h"
+#include "log.h"
 #include "table_builder.h"
 #include "tracy.h"
 
@@ -27,12 +27,13 @@ int main(int argc, char **argv)
 {
 	TracyCZoneS(ctx, 10, 1);
 
-	clock_t tstart = clock();
-	sd_fp_hits **fp_hits = load_fingerprints();
-	clock_t tloadedfp = clock();
-	
-	log_info("finished loading fingerprints in %.3f ms", 1000.0 * (tloadedfp - tstart) / CLOCKS_PER_SEC);
-	
+	clock_t      tstart    = clock();
+	sd_fp_hits **fp_hits   = load_fingerprints();
+	clock_t      tloadedfp = clock();
+
+	log_info("finished loading fingerprints in %.3f ms",
+	         1000.0 * (tloadedfp - tstart) / CLOCKS_PER_SEC);
+
 	// TODO: do we need to set _FILE_OFFSET_BITS ?
 	if (argc < 1)
 		usage();

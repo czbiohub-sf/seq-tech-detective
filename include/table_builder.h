@@ -5,24 +5,24 @@
 #include "fingerprint_info.h"
 
 typedef struct fp_hits {
-	const char *name; // printable name
+	const char      *name; // printable name
 	enum sd_read_dir dir;  // forward/reverse read, as transformed
 	enum sd_seq_type type; // tagged union for sequence
-	int   id; // id, index in fingerprint table
-	
-	sd_fp_ofs_node *ofs; // list of expected offsets
-	sd_range len; // length range, usually min == max except for certain barcode formats
+	int              id;   // id, index in fingerprint table
+
+	sd_fp_ofs_node *ofs;   // list of expected offsets
+	sd_range        len;   // length range, usually min == max except for certain barcode formats
 	union {
-		const uint32_t *bc_set; // SD_ONLIST: bitset ptr
-		uint64_t seq_int; // SD_FIXED: sequence as uint
+		const uint32_t *bc_set;  // SD_ONLIST: bitset ptr
+		uint64_t        seq_int; // SD_FIXED: sequence as uint
 	};
-	size_t hits[150]; // hit counts by position
+	size_t hits[150];            // hit counts by position
 } sd_fp_hits;
 
 char *repr_fp_hit(sd_fp_hits *fph);
-void dbg_log_fp_hit(sd_fp_hits *fph); // direct log_trace repr_fp_hit without mem mgmt req
+void  dbg_log_fp_hit(sd_fp_hits *fph); // direct log_trace repr_fp_hit without mem mgmt req
 char *fp_hits_tostr(sd_fp_hits *fph);
-void print_fp_hits(sd_fp_hits *fph); // direct print fp_hits_tostr without mem mgmt req
+void  print_fp_hits(sd_fp_hits *fph);  // direct print fp_hits_tostr without mem mgmt req
 
 // A = 00 ; C = 01 ; T = 10 ; G = 11
 __attribute__((pure)) uint64_t seq_to_int(const char *seq_p, int len, int rc);

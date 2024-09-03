@@ -45,7 +45,7 @@ static void add_res(struct res *out, struct res const *in)
 // it is illegal to call this function without exiting
 void print_all_fp_hits(sd_fp_hits **fp_hits)
 {
-	for ( ; *fp_hits != NULL; ++fp_hits) {
+	for (; *fp_hits != NULL; ++fp_hits) {
 		print_fp_hits(*fp_hits);
 	}
 }
@@ -59,13 +59,13 @@ void print_all_fp_hits(sd_fp_hits **fp_hits)
 // TODO: this is just a proof of concept version of checks for now
 void run_checks(size_t seq_len, const char seq[150], struct res *result, sd_fp_hits **fp_hits)
 {
-	for ( ; *fp_hits != NULL; ++fp_hits) {
+	for (; *fp_hits != NULL; ++fp_hits) {
 		sd_fp_hits *fp_hit = *fp_hits;
 		// fixed location mode;
 		for (sd_fp_ofs_node *ofs = fp_hit->ofs; ofs != NULL; ofs = ofs->next) {
 			// fixed location mode
 			int start = ofs->ofs.min;
-			int end = ofs->ofs.max;
+			int end   = ofs->ofs.max;
 			// if seq_len can't accomodate the sequence position, skip this one
 			if ((long)seq_len < end + fp_hit->len.max)
 				continue;
@@ -73,8 +73,8 @@ void run_checks(size_t seq_len, const char seq[150], struct res *result, sd_fp_h
 				// TODO: which end do we need to mask from again?
 				// for variable-length keys, try all mask lengths
 				for (int i = fp_hit->len.max; i >= (int)fp_hit->len.min; --i) {
-					const uint32_t key = seq_to_int(seq + pos, i, fp_hit->dir == SD_REV);
-					size_t *hitcount = &fp_hit->hits[pos];
+					const uint32_t key      = seq_to_int(seq + pos, i, fp_hit->dir == SD_REV);
+					size_t        *hitcount = &fp_hit->hits[pos];
 					switch (fp_hit->type) {
 					case SD_ONLIST:
 						if (get_bit(fp_hit->bc_set, key))
@@ -100,7 +100,7 @@ struct res fq_read(int fd, sd_fp_hits **fp_hits)
 {
 	TracyCZoneS(ctx, 10, 1);
 	struct res result = {0, 0, 0, NULL};
-	
+
 	// 4096 should be plenty enough for any short read, right ?
 	size_t  buflen = 4096;
 	ssize_t have   = 0; // bytes in buffer
@@ -328,7 +328,7 @@ struct res read_mt(int fd, off_t cur, off_t len, sd_fp_hits **fp_hits)
 				TracyCZoneEnd(ctx)
 			} while (have < BLKSIZE && bytes_left);
 		} // end block for
-		
+
 		free(buf);
 	}     // end parallel
 
