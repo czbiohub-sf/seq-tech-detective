@@ -1,6 +1,7 @@
 # build output
-build
 subprojects/tracy
+subprojects/rexo
+build
 seq-detective
 
 #
