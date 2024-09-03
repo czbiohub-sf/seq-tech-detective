@@ -20,6 +20,9 @@ profile: $(BUILDDIR) $(NAME)
 install: CFGFLAGS += -Dext_specs=enabled PREFIXARG =
 install: $(BUILDDIR) $(NAME)
 
+# unit tests:
+test:
+	meson test -C $(BUILDDIR) --interactive
 
 # clean:
 clean: $(BUILDDIR)

@@ -3,7 +3,11 @@ project(
     ['c', 'cpp'],
     version: '0.1.0',
     license: 'BSD3',
-    default_options: ['buildtype=debugoptimized', 'warning_level=3', 'c_std=gnu2x'],
+    default_options: [
+        'buildtype=debugoptimized',
+        'warning_level=3',
+        'c_std=gnu2x',
+    ],
 )
 exename = 'seq-detective'
 
@@ -70,6 +74,25 @@ seq_detective = executable(
     install: true,
 )
 
-#if get_option('test')
-#    subdir('test')
-#endif
+
+if get_option('test').enabled()
+#    subdir('tests')
+    rexo = dependency('rexo', static: true)
+    inc = include_directories('.', '../include')
+    src = files(
+        'src/fastq.c',
+        'src/filereader.c',
+        'src/fingerprint_info.c',
+        'src/log.c',  # rxi
+        'src/table_builder.c',
+    )
+
+    tests_exe = executable(
+        'seqtoint-tests',
+        ['tests/seqtoint-test.c', src],
+        include_directories: inc,
+        dependencies: [rexo],
+    )
+    test('seqtoint tests', tests_exe)
+
+endif
