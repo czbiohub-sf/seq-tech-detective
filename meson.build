@@ -3,7 +3,11 @@ project(
     ['c', 'cpp'],
     version: '0.1.0',
     license: 'BSD3',
-    default_options: ['buildtype=debugoptimized', 'warning_level=3', 'c_std=gnu2x'],
+    default_options: [
+        'buildtype=debugoptimized',
+        'warning_level=3',
+        'c_std=gnu2x',
+    ],
 )
 exename = 'seq-detective'
 

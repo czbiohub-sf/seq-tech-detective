@@ -8,10 +8,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "tracy.h"
 #include "config.h"
 #include "fingerprint_info.h"
 #include "log.h"
+#include "tracy.h"
 
 
 // TODO: tables shared between assays, but we also need to not run them multiple times.
@@ -25,21 +25,29 @@ static sd_fp_hits **fingerprint_ids;
 // caller must free returned pointer!
 char *repr_fp_hit(sd_fp_hits *fph)
 {
-	const char fmt[] = "fp_hits { name: %s, dir: %c, type: %c, id: %d, "
+	const char fmt[] =
+		"fp_hits { name: %s, dir: %c, type: %c, id: %d, "
 		"ofs: %p {%zd, %zd}, len: {%zi, %zi}, seq: %s }";
 	char *buf = NULL;
 	char *seq = int64_to_seq(fph->seq_int);
-	int sz = 0;
+	int   sz  = 0;
 	for (int i = 0; i < 2; i++) {
-		if (i != 0) buf = malloc(sz);
-		sz = snprintf(buf, sz, fmt,
-					  fph->name, "UFR"[fph->dir], "RFO"[fph->type], fph->id,
-					  (void *)fph->ofs,
-					  fph->ofs == NULL ? -1 : fph->ofs->ofs.min,
-					  fph->ofs == NULL ? -1 : fph->ofs->ofs.max,
-					  fph->len.min, fph->len.max,
-					  fph->type == SD_FIXED ? seq : "(onlist)"
-			) + 1;
+		if (i != 0)
+			buf = malloc(sz);
+		sz = snprintf(buf,
+		              sz,
+		              fmt,
+		              fph->name,
+		              "UFR"[fph->dir],
+		              "RFO"[fph->type],
+		              fph -> id,
+		              (void *)fph -> ofs,
+		              fph -> ofs == NULL ? -1 : fph -> ofs -> ofs.min,
+		              fph->ofs == NULL ? -1 : fph->ofs->ofs.max,
+		              fph->len.min,
+		              fph->len.max,
+		              fph->type == SD_FIXED ? seq : "(onlist)")
+		     + 1;
 	}
 	free(seq);
 	return buf;
@@ -56,10 +64,10 @@ void dbg_log_fp_hit(sd_fp_hits *fph)
 // caller must free returned pointer!
 char *fp_hits_tostr(sd_fp_hits *fph)
 {
-	const int sz = 2048;
-	char *msg = malloc(sz);
-	int e;
-	int maxpos = sizeof(fph->hits) / sizeof(size_t);
+	const int sz  = 2048;
+	char     *msg = malloc(sz);
+	int       e;
+	int       maxpos = sizeof(fph->hits) / sizeof(size_t);
 	// SEQUENCENAME: [pos: val, pos: val]
 	e = snprintf(msg, sz, "%s: [", fph->name);
 	for (int i = 0; i < maxpos; ++i) {
@@ -81,17 +89,17 @@ void print_fp_hits(sd_fp_hits *fph)
 sd_fp_hits *init_fp_hit(const sd_fingerprint *rgn, int id, enum sd_read_dir dir)
 {
 	sd_fp_hits *fp_id = (sd_fp_hits *)malloc(sizeof(sd_fp_hits));
-	*fp_id = (sd_fp_hits) {
-        .name = rgn->sequence,
-		.dir  = dir,
-		.type = rgn->type,
-		.id   = id,
-		.len  = { .min = rgn->len.min, .max = rgn->len.max },
-        .seq_int = 0L,
-		.ofs     = (sd_fp_ofs_node *)malloc(sizeof(sd_fp_ofs_node)),
-		.hits    = {0}
-	};
-	fp_id->ofs->next = NULL;
+	*fp_id            = (sd_fp_hits){
+				   .name    = rgn->sequence,
+				   .dir     = dir,
+				   .type    = rgn->type,
+				   .id      = id,
+				   .len     = {.min = rgn->len.min, .max = rgn->len.max},
+				   .seq_int = 0L,
+				   .ofs     = (sd_fp_ofs_node *)malloc(sizeof(sd_fp_ofs_node)),
+				   .hits    = {0}
+    };
+	fp_id->ofs->next    = NULL;
 	fp_id->ofs->ofs.min = rgn->ofs.min;
 	fp_id->ofs->ofs.max = rgn->ofs.max;
 
@@ -103,8 +111,8 @@ void update_expected_ofs(sd_fp_hits *fp_id, const sd_fingerprint *rgn)
 {
 	sd_range n_ofs = rgn->ofs;
 	if (fp_id->ofs == NULL) {
-		fp_id->ofs = (sd_fp_ofs_node *)malloc(sizeof(sd_fp_ofs_node));
-		fp_id->ofs->ofs = (sd_range){ .min = n_ofs.min, .max = n_ofs.max };
+		fp_id->ofs       = (sd_fp_ofs_node *)malloc(sizeof(sd_fp_ofs_node));
+		fp_id->ofs->ofs  = (sd_range){.min = n_ofs.min, .max = n_ofs.max};
 		fp_id->ofs->next = NULL;
 		return;
 	}
@@ -117,19 +125,18 @@ void update_expected_ofs(sd_fp_hits *fp_id, const sd_fingerprint *rgn)
 		// expand left
 		if (cur_ofs.min <= n_ofs.max)
 			cur_ofs.min = cur_ofs.min < n_ofs.min ? n_ofs.min : cur_ofs.min;
-		
+
 		if (cur_ofs.max >= n_ofs.min || cur_ofs.min <= n_ofs.max)
-			return; // updated an entry, done here
-		
+			return;                        // updated an entry, done here
+
 		if (cur_ofs_node->next == NULL)
-			break; // add a new offset node
+			break;                         // add a new offset node
 		cur_ofs_node = cur_ofs_node->next; // keep searching
 	}
-	cur_ofs_node->next = (sd_fp_ofs_node *)malloc(sizeof(sd_fp_ofs_node));
-	cur_ofs_node->next->ofs = (sd_range) { .min = n_ofs.min, .max = n_ofs.max };
+	cur_ofs_node->next       = (sd_fp_ofs_node *)malloc(sizeof(sd_fp_ofs_node));
+	cur_ofs_node->next->ofs  = (sd_range){.min = n_ofs.min, .max = n_ofs.max};
 	cur_ofs_node->next->next = NULL;
 }
-
 
 
 ENTRY *get_fingerprint_id(const sd_fingerprint *rgn)
@@ -148,7 +155,7 @@ void ll_delete(sd_fp_ofs_node *ofs)
 }
 void delete_fingerprints(sd_fp_hits **fp_hits)
 {
-	for ( ; *fp_hits != NULL; ++fp_hits) {
+	for (; *fp_hits != NULL; ++fp_hits) {
 		sd_fp_hits *fp_hit = *fp_hits;
 		if (fp_hit->type == SD_ONLIST)
 			free(fp_hit->bc_set);
@@ -159,7 +166,7 @@ void delete_fingerprints(sd_fp_hits **fp_hits)
 }
 
 // fingerprint_ids: [fp, fp_rc, fp2, fp2_rc]
- 
+
 // load all barcode tables
 sd_fp_hits **load_fingerprints(void)
 {
@@ -169,7 +176,7 @@ sd_fp_hits **load_fingerprints(void)
 	ENTRY        rgn_seq_entry, *found_rgn;
 
 	hcreate(NUM_FINGERPRINTS * 4);
-	
+
 	int num_fpr = 0;
 	// TODO: this can need realloc, build out real structure
 	fingerprint_ids = calloc(NUM_FINGERPRINTS * 6 * 2, sizeof(sd_fp_hits *));
@@ -201,11 +208,11 @@ sd_fp_hits **load_fingerprints(void)
 				posix_fadvise(fileno(onlist_fp), 0, 0, POSIX_FADV_SEQUENTIAL | POSIX_FADV_WILLNEED);
 				// store the pointer to the newly created table
 				// TODO: build set should generate both fwd and reverse
-				fingerprint_ids[num_fpr] = init_fp_hit(rgn, num_fpr, SD_FWD);
+				fingerprint_ids[num_fpr]         = init_fp_hit(rgn, num_fpr, SD_FWD);
 				fingerprint_ids[num_fpr]->bc_set = build_set(onlist_fp, rgn->len.max * 2, SD_FWD);
 				dbg_log_fp_hit(fingerprint_ids[num_fpr]);
 				++num_fpr;
-				fingerprint_ids[num_fpr] = init_fp_hit(rgn, num_fpr, SD_REV);
+				fingerprint_ids[num_fpr]         = init_fp_hit(rgn, num_fpr, SD_REV);
 				fingerprint_ids[num_fpr]->bc_set = build_set(onlist_fp, rgn->len.max * 2, SD_REV);
 				dbg_log_fp_hit(fingerprint_ids[num_fpr]);
 				++num_fpr;
@@ -213,7 +220,7 @@ sd_fp_hits **load_fingerprints(void)
 				posix_fadvise(fileno(onlist_fp), 0, 0, POSIX_FADV_DONTNEED);
 				fclose(onlist_fp);
 
-				rgn_seq_entry.key = (char *)rgn->sequence;
+				rgn_seq_entry.key  = (char *)rgn->sequence;
 				rgn_seq_entry.data = fingerprint_ids[num_fpr - 2];
 				hsearch(rgn_seq_entry, ENTER);
 				break;
@@ -223,18 +230,16 @@ sd_fp_hits **load_fingerprints(void)
 				if (seq_len > 32)
 					log_warn("FIXME! too long linker: %s (%s)", fgpts.name, rgn->sequence);
 
-				fingerprint_ids[num_fpr] = init_fp_hit(rgn, num_fpr, SD_FWD);
-				fingerprint_ids[num_fpr]->seq_int =
-					seq_to_int(rgn->sequence, seq_len, false);
+				fingerprint_ids[num_fpr]          = init_fp_hit(rgn, num_fpr, SD_FWD);
+				fingerprint_ids[num_fpr]->seq_int = seq_to_int(rgn->sequence, seq_len, false);
 				dbg_log_fp_hit(fingerprint_ids[num_fpr]);
 				++num_fpr;
-				fingerprint_ids[num_fpr] = init_fp_hit(rgn, num_fpr, SD_REV);
-				fingerprint_ids[num_fpr]->seq_int =
-					seq_to_int(rgn->sequence, seq_len, true);
+				fingerprint_ids[num_fpr]          = init_fp_hit(rgn, num_fpr, SD_REV);
+				fingerprint_ids[num_fpr]->seq_int = seq_to_int(rgn->sequence, seq_len, true);
 				dbg_log_fp_hit(fingerprint_ids[num_fpr]);
 				++num_fpr;
-				
-				rgn_seq_entry.key = (char *)rgn->sequence;
+
+				rgn_seq_entry.key  = (char *)rgn->sequence;
 				rgn_seq_entry.data = fingerprint_ids[num_fpr - 2];
 				hsearch(rgn_seq_entry, ENTER);
 				break;
@@ -245,7 +250,7 @@ sd_fp_hits **load_fingerprints(void)
 				log_warn("bad region '%d' on %s, R%d ignored", rgn->type, fgpts.name, rgn->read);
 			}
 		} // foreach region in fingerprint
-	} // foreach assay fingerprint
+	}     // foreach assay fingerprint
 
 	TracyCZoneEnd(ctx);
 	return fingerprint_ids;
@@ -319,22 +324,22 @@ inline uint64_t seq_to_int(const char *seq_p, int len, int rc)
 {
 	if (!rc) {
 		if (len <= 8)
-			return seq_to_int16(seq_p)  & (~0UL << (16 - (len * 2)));
+			return seq_to_int16(seq_p) & (~0UL << (16 - (len * 2)));
 		else if (len <= 16)
-			return seq_to_int32(seq_p)  & (~0UL << (32 - (len * 2)));
+			return seq_to_int32(seq_p) & (~0UL << (32 - (len * 2)));
 		else if (len <= 32)
-			return seq_to_int64(seq_p)  & (~0UL << (64 - (len * 2)));
+			return seq_to_int64(seq_p) & (~0UL << (64 - (len * 2)));
 		// TODO: this is either bad stopgap
 		// or an intentional behavior to be formalized.
-		return seq_to_int64(seq_p)  & (~0UL << (64 - (len * 2)));
+		return seq_to_int64(seq_p) & (~0UL << (64 - (len * 2)));
 	} else {
 		if (len <= 8)
-			return seq_to_int16_rc(seq_p)  & ((1UL << (len * 2)) - 1);
+			return seq_to_int16_rc(seq_p) & ((1UL << (len * 2)) - 1);
 		else if (len <= 16)
-			return seq_to_int32_rc(seq_p)  & ((1UL << (len * 2)) - 1);
+			return seq_to_int32_rc(seq_p) & ((1UL << (len * 2)) - 1);
 		else if (len <= 32)
-			return seq_to_int64_rc(seq_p)  & ((1UL << (len * 2)) - 1);
-		return seq_to_int64_rc(seq_p)  & ((1UL << (len * 2)) - 1);
+			return seq_to_int64_rc(seq_p) & ((1UL << (len * 2)) - 1);
+		return seq_to_int64_rc(seq_p) & ((1UL << (len * 2)) - 1);
 	}
 }
 
@@ -368,19 +373,19 @@ uint32_t *build_set(FILE *barcode_file, uint32_t width, enum sd_read_dir dir)
 {
 	const size_t MAX_ENTRIES = (1UL << width) - 1;
 	// entries / bits-per-cell * bytes-per-cell
-	const size_t SIZEB       = (MAX_ENTRIES >> KBITS) * sizeof(uint32_t);
-	//uint32_t    *table       = (uint32_t *)aligned_alloc(128, SIZEB);
-	uint32_t    *table       = (uint32_t *)calloc(MAX_ENTRIES >> KBITS, sizeof(uint32_t));
-	//width = 1 << (32 - __builtin_clzl(width - 1));
-	size_t       buf_len     = (width / 2) + 2; // need space for newbuf + nul
+	const size_t SIZEB = (MAX_ENTRIES >> KBITS) * sizeof(uint32_t);
+	// uint32_t    *table       = (uint32_t *)aligned_alloc(128, SIZEB);
+	uint32_t *table = (uint32_t *)calloc(MAX_ENTRIES >> KBITS, sizeof(uint32_t));
+	// width = 1 << (32 - __builtin_clzl(width - 1));
+	size_t buf_len = (width / 2) + 2; // need space for newbuf + nul
 	if (width < 16)
 		buf_len = 8 + 2;
 	else if (width < 32)
 		buf_len = 16 + 2;
 	else if (width < 64)
 		buf_len = 32 + 2;
-	char        *buf         = (char *)aligned_alloc(128, buf_len);
-	ssize_t      nread;
+	char   *buf = (char *)aligned_alloc(128, buf_len);
+	ssize_t nread;
 
 	if (width <= 16) {
 		if (dir != SD_REV) {
