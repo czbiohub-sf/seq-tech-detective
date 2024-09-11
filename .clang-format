@@ -127,8 +127,8 @@ IndentWrappedFunctionNames: false
 InsertBraces: false
 InsertNewlineAtEOF: true
 IntegerLiteralSeparator:
-  Binary: 4
-  BinaryMinDigits: 9
+  Binary: 0
+  BinaryMinDigits: 0
   Decimal: 0
   DecimalMinDigits: 0
   Hex: 0
