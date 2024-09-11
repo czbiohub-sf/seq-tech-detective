@@ -19,10 +19,12 @@ typedef struct fp_hits {
 	size_t hits[150];            // hit counts by position
 } sd_fp_hits;
 
-char *repr_fp_hit(sd_fp_hits *fph);
-void  dbg_log_fp_hit(sd_fp_hits *fph); // direct log_trace repr_fp_hit without mem mgmt req
-char *fp_hits_tostr(sd_fp_hits *fph);
-void  print_fp_hits(sd_fp_hits *fph);  // direct print fp_hits_tostr without mem mgmt req
+sd_fp_hits *init_fp_hit(const sd_fingerprint *rgn, int id, enum sd_read_dir dir);
+void        update_expected_ofs(sd_fp_hits *fp_id, const sd_fingerprint *rgn);
+char       *repr_fp_hit(sd_fp_hits *fph);
+void        dbg_log_fp_hit(sd_fp_hits *fph); // direct log_trace repr_fp_hit without mem mgmt req
+char       *fp_hits_tostr(sd_fp_hits *fph);
+void        print_fp_hits(sd_fp_hits *fph);  // direct print fp_hits_tostr without mem mgmt req
 
 // A = 00 ; C = 01 ; T = 10 ; G = 11
 __attribute__((pure)) uint64_t seq_to_int(const char *seq_p, int len, int rc);
@@ -33,6 +35,13 @@ __attribute__((pure)) uint32_t seq_to_int32(const char seq_p[16]);
 __attribute__((pure)) uint32_t seq_to_int32_rc(const char seq_p[16]);
 __attribute__((pure)) uint64_t seq_to_int64(const char seq_p[32]);
 __attribute__((pure)) uint64_t seq_to_int64_rc(const char seq_p[32]);
+
+__attribute__((pure)) uint16_t seq_to_int16_s(const char seq_p[8], int len);
+__attribute__((pure)) uint16_t seq_to_int16_rc_s(const char seq_p[8], int len);
+__attribute__((pure)) uint32_t seq_to_int32_s(const char seq_p[16], int len);
+__attribute__((pure)) uint32_t seq_to_int32_rc_s(const char seq_p[16], int len);
+__attribute__((pure)) uint64_t seq_to_int64_s(const char seq_p[32], int len);
+__attribute__((pure)) uint64_t seq_to_int64_rc_s(const char seq_p[32], int len);
 
 char *int64_to_seq(uint64_t s);
 

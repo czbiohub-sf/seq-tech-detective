@@ -77,6 +77,7 @@ void run_checks(size_t seq_len, const char seq[150], struct res *result, sd_fp_h
 					size_t        *hitcount = &fp_hit->hits[pos];
 					switch (fp_hit->type) {
 					case SD_ONLIST:
+						// printf("%s\n", int64_to_seq(key));
 						if (get_bit(fp_hit->bc_set, key))
 #pragma omp atomic
 							(*hitcount)++;
