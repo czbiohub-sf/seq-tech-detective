@@ -2,7 +2,7 @@ NAME=seq-detective
 BUILDDIR=build
 PREFIXARG=--prefix $(PWD)/seq-detective
 
-.PHONY: $(NAME) profile clean lint lint_c lint_py lint_sh fmt
+.PHONY: $(NAME) profile install test clean lint lint_c lint_py lint_sh fmt
 
 $(NAME): $(BUILDDIR)
 	meson compile -C $(BUILDDIR)
@@ -21,7 +21,8 @@ install: CFGFLAGS += -Dext_specs=enabled PREFIXARG =
 install: $(BUILDDIR) $(NAME)
 
 # unit tests:
-test:
+test: CFGFLAGS += -Dtest=enabled
+test: $(BUILDDIR)
 	meson test -C $(BUILDDIR) --interactive
 
 # clean:

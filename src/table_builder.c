@@ -158,7 +158,7 @@ void delete_fingerprints(sd_fp_hits **fp_hits)
 	for (; *fp_hits != NULL; ++fp_hits) {
 		sd_fp_hits *fp_hit = *fp_hits;
 		if (fp_hit->type == SD_ONLIST)
-			free(fp_hit->bc_set);
+			free((void *)fp_hit->bc_set);
 		ll_delete(fp_hit->ofs);
 		free(fp_hit->ofs);
 		free(fp_hit);
@@ -258,13 +258,16 @@ sd_fp_hits **load_fingerprints(void)
 
 
 // A = 00 ; C = 01 ; T = 10 ; G = 11
+__attribute__((pure)) uint64_t mask(int len) { return (1UL << len * 2) - 1; }
+__attribute__((pure)) uint64_t empty(int width, int len) { return width - len * 2; }
+
 // the 32-bit version compiles to SIMD shuffles when available
 __attribute__((pure)) uint16_t seq_to_int16(const char seq_p[8])
 {
 	uint16_t result = 0;
 	for (uint8_t i = 0; i < 8; i++) {
 		char base = (seq_p[i] >> 1U) & 0b11;
-		result |= (uint16_t)base << ((7 - i) * 2);
+		result |= (uint16_t)base << (i * 2);
 	}
 	return result;
 }
@@ -274,7 +277,7 @@ __attribute__((pure)) uint32_t seq_to_int32(const char seq_p[16])
 	uint32_t result = 0;
 	for (uint8_t i = 0; i < 16; i++) {
 		char base = (seq_p[i] >> 1U) & 0b11;
-		result |= (uint32_t)base << ((15 - i) * 2);
+		result |= (uint32_t)base << (i * 2);
 	}
 	return result;
 }
@@ -284,7 +287,7 @@ __attribute__((pure)) uint64_t seq_to_int64(const char seq_p[32])
 	uint64_t result = 0;
 	for (uint8_t i = 0; i < 32; i++) {
 		char base = (seq_p[i] >> 1U) & 0b11;
-		result |= (uint64_t)base << ((31 - i) * 2);
+		result |= (uint64_t)base << (i * 2);
 	}
 	return result;
 }
@@ -294,7 +297,7 @@ __attribute__((pure)) uint16_t seq_to_int16_rc(const char seq_p[8])
 	uint16_t result = 0;
 	for (uint8_t i = 0; i < 8; i++) {
 		char base = ((seq_p[i] >> 1U) ^ 0b10) & 0b11;
-		result |= (uint16_t)base << (i * 2);
+		result |= (uint16_t)base << ((7 - i) * 2);
 	}
 	return result;
 }
@@ -304,7 +307,7 @@ __attribute__((pure)) uint32_t seq_to_int32_rc(const char seq_p[16])
 	uint32_t result = 0;
 	for (uint8_t i = 0; i < 16; i++) {
 		char base = ((seq_p[i] >> 1U) ^ 0b10) & 0b11;
-		result |= (uint32_t)base << (i * 2);
+		result |= (uint32_t)base << ((15 - i) * 2);
 	}
 	return result;
 }
@@ -314,9 +317,37 @@ __attribute__((pure)) uint64_t seq_to_int64_rc(const char seq_p[32])
 	uint64_t result = 0;
 	for (uint8_t i = 0; i < 32; i++) {
 		char base = ((seq_p[i] >> 1U) ^ 0b10) & 0b11;
-		result |= (uint64_t)base << (i * 2);
+		result |= (uint64_t)base << ((31 - i) * 2);
 	}
 	return result;
+}
+
+// input sized variants (masked & aligned to lowest bit)
+// may be important for reverse complement lookups
+// mask guards improperly sized sequence input buffer.
+__attribute__((pure)) uint16_t seq_to_int16_s(const char seq_p[8], int len)
+{
+	return seq_to_int16(seq_p) & mask(len);
+}
+__attribute__((pure)) uint32_t seq_to_int32_s(const char seq_p[16], int len)
+{
+	return seq_to_int32(seq_p) & mask(len);
+}
+__attribute__((pure)) uint64_t seq_to_int64_s(const char seq_p[32], int len)
+{
+	return seq_to_int64(seq_p) & mask(len);
+}
+__attribute__((pure)) uint16_t seq_to_int16_rc_s(const char seq_p[8], int len)
+{
+	return seq_to_int16_rc(seq_p) >> empty(16, len) & mask(len);
+}
+__attribute__((pure)) uint32_t seq_to_int32_rc_s(const char seq_p[16], int len)
+{
+	return seq_to_int32_rc(seq_p) >> empty(32, len) & mask(len);
+}
+__attribute__((pure)) uint64_t seq_to_int64_rc_s(const char seq_p[32], int len)
+{
+	return seq_to_int64_rc(seq_p) >> empty(64, len) & mask(len);
 }
 
 // seq_to_int with correct length dispatch and masking
@@ -324,22 +355,22 @@ inline uint64_t seq_to_int(const char *seq_p, int len, int rc)
 {
 	if (!rc) {
 		if (len <= 8)
-			return seq_to_int16(seq_p) & (~0UL << (16 - (len * 2)));
+			return seq_to_int16(seq_p) & mask(len);
 		else if (len <= 16)
-			return seq_to_int32(seq_p) & (~0UL << (32 - (len * 2)));
+			return seq_to_int32(seq_p) & mask(len);
 		else if (len <= 32)
-			return seq_to_int64(seq_p) & (~0UL << (64 - (len * 2)));
+			return seq_to_int64(seq_p) & mask(len);
 		// TODO: this is either bad stopgap
 		// or an intentional behavior to be formalized.
-		return seq_to_int64(seq_p) & (~0UL << (64 - (len * 2)));
+		return seq_to_int64(seq_p) & mask(len);
 	} else {
 		if (len <= 8)
-			return seq_to_int16_rc(seq_p) & ((1UL << (len * 2)) - 1);
+			return seq_to_int16_rc(seq_p) >> empty(16, len) & mask(len);
 		else if (len <= 16)
-			return seq_to_int32_rc(seq_p) & ((1UL << (len * 2)) - 1);
+			return seq_to_int32_rc(seq_p) >> empty(32, len) & mask(len);
 		else if (len <= 32)
-			return seq_to_int64_rc(seq_p) & ((1UL << (len * 2)) - 1);
-		return seq_to_int64_rc(seq_p) & ((1UL << (len * 2)) - 1);
+			return seq_to_int64_rc(seq_p) >> empty(64, len) & mask(len);
+		return seq_to_int64_rc(seq_p) >> empty(64, len) & mask(len);
 	}
 }
 
@@ -348,7 +379,7 @@ char *int64_to_seq(uint64_t s)
 {
 	char *seq = malloc(33);
 	for (int i = 31; i >= 0; i--) {
-		seq[31 - i] = "ACTG"[(s & (3L << i * 2)) >> (i * 2)];
+		seq[i] = "ACTG"[(s & (3L << i * 2)) >> (i * 2)];
 	}
 	seq[32] = '\0';
 	return seq;
@@ -373,7 +404,7 @@ uint32_t *build_set(FILE *barcode_file, uint32_t width, enum sd_read_dir dir)
 {
 	const size_t MAX_ENTRIES = (1UL << width) - 1;
 	// entries / bits-per-cell * bytes-per-cell
-	const size_t SIZEB = (MAX_ENTRIES >> KBITS) * sizeof(uint32_t);
+	// const size_t SIZEB = (MAX_ENTRIES >> KBITS) * sizeof(uint32_t);
 	// uint32_t    *table       = (uint32_t *)aligned_alloc(128, SIZEB);
 	uint32_t *table = (uint32_t *)calloc(MAX_ENTRIES >> KBITS, sizeof(uint32_t));
 	// width = 1 << (32 - __builtin_clzl(width - 1));
@@ -391,24 +422,56 @@ uint32_t *build_set(FILE *barcode_file, uint32_t width, enum sd_read_dir dir)
 		if (dir != SD_REV) {
 			while ((nread = getline(&buf, &buf_len, barcode_file)) >= 6) {
 				memset(&buf[nread - 1], 0, buf_len - (nread - 1)); // NOLINT
-				set_bit(table, (const uint32_t)seq_to_int16(buf));
+				const uint32_t key = (const uint32_t)seq_to_int16_s(buf, width / 2);
+				set_bit(table, key);
+				/*
+				 * for (int i = 0; i < width; i += 2) {
+				 * 	set_bit(table, key ^ (0b01 << i));
+				 * 	set_bit(table, key ^ (0b10 << i));
+				 * 	set_bit(table, key ^ (0b11 << i));
+				 * }
+				 */
 			}
 		} else {
 			while ((nread = getline(&buf, &buf_len, barcode_file)) >= 6) {
 				memset(&buf[nread - 1], 0, buf_len - (nread - 1)); // NOLINT
-				set_bit(table, (const uint32_t)seq_to_int16_rc(buf));
+				const uint32_t key = (const uint32_t)seq_to_int16_rc_s(buf, width / 2);
+				set_bit(table, key);
+				/*
+				 * for (int i = 0; i < width; i += 2) {
+				 * 	set_bit(table, key ^ (0b01 << i));
+				 * 	set_bit(table, key ^ (0b10 << i));
+				 * 	set_bit(table, key ^ (0b11 << i));
+				 * }
+				 */
 			}
 		}
 	} else {
 		if (dir != SD_REV) {
 			while ((nread = getline(&buf, &buf_len, barcode_file)) >= 6) {
 				memset(&buf[nread - 1], 0, buf_len - (nread - 1)); // NOLINT
-				set_bit(table, seq_to_int32(buf));
+				const uint32_t key = seq_to_int32_s(buf, width / 2);
+				set_bit(table, key);
+				/*
+				 * for (int i = 0; i < width; i += 2) {
+				 * 	set_bit(table, key ^ (0b01 << i));
+				 * 	set_bit(table, key ^ (0b10 << i));
+				 * 	set_bit(table, key ^ (0b11 << i));
+				 * }
+				 */
 			}
 		} else {
 			while ((nread = getline(&buf, &buf_len, barcode_file)) >= 6) {
 				memset(&buf[nread - 1], 0, buf_len - (nread - 1)); // NOLINT
-				set_bit(table, seq_to_int32_rc(buf));
+				const uint32_t key = seq_to_int32_rc_s(buf, width / 2);
+				set_bit(table, key);
+				/*
+				 * for (int i = 0; i < width; i += 2) {
+				 * 	set_bit(table, key ^ (0b01 << i));
+				 * 	set_bit(table, key ^ (0b10 << i));
+				 * 	set_bit(table, key ^ (0b11 << i));
+				 * }
+				 */
 			}
 		}
 	}

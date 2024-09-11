@@ -6,7 +6,7 @@ project(
     default_options: [
         'buildtype=debugoptimized',
         'warning_level=3',
-        'c_std=gnu2x',
+        'c_std=gnu23,gnu2x,c23,c2x',
     ],
 )
 exename = 'seq-detective'
@@ -30,15 +30,17 @@ conf.set10('LOG_USE_COLOR', get_option('log_use_color'))
 configure_file(output: 'config.h', configuration: conf)
 
 # sources
-main_src = files(
+lib_src = files(
     'src/fastq.c',
     'src/filereader.c',
     'src/fingerprint_info.c',
     'src/log.c',  # rxi
-    'src/main.c',
     'src/table_builder.c',
 )
-src = [main_src]
+main_src = files(
+    'src/main.c',
+)
+src = [main_src, lib_src]
 
 seqdetective_headers = include_directories('.', 'include')
 inc = [seqdetective_headers]
@@ -74,25 +76,4 @@ seq_detective = executable(
     install: true,
 )
 
-
-if get_option('test').enabled()
-#    subdir('tests')
-    rexo = dependency('rexo', static: true)
-    inc = include_directories('.', '../include')
-    src = files(
-        'src/fastq.c',
-        'src/filereader.c',
-        'src/fingerprint_info.c',
-        'src/log.c',  # rxi
-        'src/table_builder.c',
-    )
-
-    tests_exe = executable(
-        'seqtoint-tests',
-        ['tests/seqtoint-test.c', src],
-        include_directories: inc,
-        dependencies: [rexo],
-    )
-    test('seqtoint tests', tests_exe)
-
-endif
+subdir('tests')
