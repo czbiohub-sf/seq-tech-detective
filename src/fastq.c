@@ -331,7 +331,7 @@ struct res read_mt(int fd, off_t cur, off_t len, sd_fp_hits **fp_hits)
 		} // end block for
 
 		free(buf);
-	}     // end parallel
+	} // end parallel
 
 	printf("reads: %zi\navg len: %zi\n%f polyt hit rate\n",
 	       result.num_reads,

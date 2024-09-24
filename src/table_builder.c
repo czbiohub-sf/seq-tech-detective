@@ -229,13 +229,15 @@ sd_fp_hits **load_fingerprints(void)
 				int seq_len = strlen(rgn->sequence);
 				if (seq_len > 32)
 					log_warn("FIXME! too long linker: %s (%s)", fgpts.name, rgn->sequence);
+				char seq_buf[32 + 1];
+				strncpy(seq_buf, rgn->sequence, 32);
 
 				fingerprint_ids[num_fpr]          = init_fp_hit(rgn, num_fpr, SD_FWD);
-				fingerprint_ids[num_fpr]->seq_int = seq_to_int(rgn->sequence, seq_len, false);
+				fingerprint_ids[num_fpr]->seq_int = seq_to_int(seq_buf, seq_len, false);
 				dbg_log_fp_hit(fingerprint_ids[num_fpr]);
 				++num_fpr;
 				fingerprint_ids[num_fpr]          = init_fp_hit(rgn, num_fpr, SD_REV);
-				fingerprint_ids[num_fpr]->seq_int = seq_to_int(rgn->sequence, seq_len, true);
+				fingerprint_ids[num_fpr]->seq_int = seq_to_int(seq_buf, seq_len, true);
 				dbg_log_fp_hit(fingerprint_ids[num_fpr]);
 				++num_fpr;
 
@@ -250,7 +252,7 @@ sd_fp_hits **load_fingerprints(void)
 				log_warn("bad region '%d' on %s, R%d ignored", rgn->type, fgpts.name, rgn->read);
 			}
 		} // foreach region in fingerprint
-	}     // foreach assay fingerprint
+	} // foreach assay fingerprint
 
 	TracyCZoneEnd(ctx);
 	return fingerprint_ids;
@@ -379,7 +381,7 @@ char *int64_to_seq(uint64_t s)
 {
 	char *seq = malloc(33);
 	for (int i = 31; i >= 0; i--) {
-		seq[i] = "ACTG"[(s & (3L << i * 2)) >> (i * 2)];
+		seq[i] = "ACTG"[(s & (3UL << i * 2)) >> (i * 2)];
 	}
 	seq[32] = '\0';
 	return seq;
@@ -402,19 +404,12 @@ inline int get_bit(const uint32_t *table, const uint32_t key)
 // build bitset lookup tables for a given a barcode list
 uint32_t *build_set(FILE *barcode_file, uint32_t width, enum sd_read_dir dir)
 {
-	const size_t MAX_ENTRIES = (1UL << width) - 1;
+	const size_t MAX_ENTRIES = 1UL << width;
 	// entries / bits-per-cell * bytes-per-cell
-	// const size_t SIZEB = (MAX_ENTRIES >> KBITS) * sizeof(uint32_t);
-	// uint32_t    *table       = (uint32_t *)aligned_alloc(128, SIZEB);
 	uint32_t *table = (uint32_t *)calloc(MAX_ENTRIES >> KBITS, sizeof(uint32_t));
 	// width = 1 << (32 - __builtin_clzl(width - 1));
-	size_t buf_len = (width / 2) + 2; // need space for newbuf + nul
-	if (width < 16)
-		buf_len = 8 + 2;
-	else if (width < 32)
-		buf_len = 16 + 2;
-	else if (width < 64)
-		buf_len = 32 + 2;
+	size_t buf_len = 128; // need space for newbuf + nul
+	// size must be a multiple of alignment
 	char   *buf = (char *)aligned_alloc(128, buf_len);
 	ssize_t nread;
 

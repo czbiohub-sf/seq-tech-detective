@@ -21,7 +21,7 @@ install: CFGFLAGS += -Dext_specs=enabled PREFIXARG =
 install: $(BUILDDIR) $(NAME)
 
 # unit tests:
-test: CFGFLAGS += -Dtest=enabled
+test: CFGFLAGS += -Dtest=enabled -Db_coverage=true
 test: $(BUILDDIR)
 	meson test -C $(BUILDDIR) --interactive
 
