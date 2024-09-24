@@ -1,5 +1,9 @@
 if get_option('test').enabled()
-    rexo = dependency('rexo', static: true)
+    rexo = dependency(
+        'rexo',
+        default_options: ['c_args=-Wno-clobbered'],
+        static: true,
+    )
 
     seqtoint_tests_exe = executable(
         'seqtoint-tests',

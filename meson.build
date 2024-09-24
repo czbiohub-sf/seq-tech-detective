@@ -11,7 +11,16 @@ project(
 )
 exename = 'seq-detective'
 
-add_project_arguments(['-g3', '-fopenmp'], language: ['c'])
+proj_args = ['-g3', '-fopenmp']
+if get_option('test').enabled()
+    proj_args += [
+        '-Wno-stringop-overread',  # intentional
+        '-Wno-attributes',  # rexo
+        '-Wno-format-extra-args',  # rexo
+        '-Wno-clobbered',  # rexo
+    ]
+endif
+add_project_arguments(proj_args, language: ['c'])
 add_project_link_arguments(['-fopenmp'], language: ['c', 'cpp'])
 
 # dependencies: openmp
@@ -37,9 +46,7 @@ lib_src = files(
     'src/log.c',  # rxi
     'src/table_builder.c',
 )
-main_src = files(
-    'src/main.c',
-)
+main_src = files('src/main.c')
 src = [main_src, lib_src]
 
 seqdetective_headers = include_directories('.', 'include')
