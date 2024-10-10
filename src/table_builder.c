@@ -1,5 +1,6 @@
 #include "table_builder.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <linux/limits.h>
 #include <search.h>
@@ -89,15 +90,19 @@ void print_fp_hits(sd_fp_hits *fph)
 sd_fp_hits *init_fp_hit(const sd_fingerprint *rgn, int id, enum sd_read_dir dir)
 {
 	sd_fp_hits *fp_id = (sd_fp_hits *)malloc(sizeof(sd_fp_hits));
-	*fp_id            = (sd_fp_hits){
-				   .name    = rgn->sequence,
-				   .dir     = dir,
-				   .type    = rgn->type,
-				   .id      = id,
-				   .len     = {.min = rgn->len.min, .max = rgn->len.max},
-				   .seq_int = 0L,
-				   .ofs     = (sd_fp_ofs_node *)malloc(sizeof(sd_fp_ofs_node)),
-				   .hits    = {0}
+	char       *name  = malloc(strlen(rgn->sequence) + 1 + 3 * (dir == SD_REV));
+	strncpy(name, rgn->sequence, strlen(rgn->sequence) + 1);
+	if (dir == SD_REV)
+		strncat(name, "_RC", strlen(rgn->sequence) + 4);
+	*fp_id = (sd_fp_hits){
+		.name    = name,
+		.dir     = dir,
+		.type    = rgn->type,
+		.id      = id,
+		.len     = {.min = rgn->len.min, .max = rgn->len.max},
+		.seq_int = 0L,
+		.ofs     = (sd_fp_ofs_node *)malloc(sizeof(sd_fp_ofs_node)),
+		.hits    = {0}
     };
 	fp_id->ofs->next    = NULL;
 	fp_id->ofs->ofs.min = rgn->ofs.min;
@@ -212,6 +217,9 @@ sd_fp_hits **load_fingerprints(void)
 				fingerprint_ids[num_fpr]->bc_set = build_set(onlist_fp, rgn->len.max * 2, SD_FWD);
 				dbg_log_fp_hit(fingerprint_ids[num_fpr]);
 				++num_fpr;
+				// rewind file for reverse complement table
+				if (fseek(onlist_fp, 0L, SEEK_SET) != 0)
+					log_error("could not rewind bc onlist: %s", path);
 				fingerprint_ids[num_fpr]         = init_fp_hit(rgn, num_fpr, SD_REV);
 				fingerprint_ids[num_fpr]->bc_set = build_set(onlist_fp, rgn->len.max * 2, SD_REV);
 				dbg_log_fp_hit(fingerprint_ids[num_fpr]);
