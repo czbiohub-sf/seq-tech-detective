@@ -24,9 +24,9 @@ static struct sd_library_fingerprint fingerprints2[] = {
 	},
 	{
 		"inDropv2_bc1_repeat", {
-			{ SD_I1, SD_FWD,  SD_ONLIST, { 0,  0}, { 6,  6}, {"sample_index_onlist.txt"} },
-			{ SD_R2, SD_REV,  SD_ONLIST, { 0,  0}, { 8, 11}, {"cb_indrop_bc1.txt"} },
-			{ SD_R2, SD_REV,   SD_FIXED, { 8, 11}, {22, 22}, {"AAGGCGTCACAAGCAATCACTC"} },
+			//{ SD_I1, SD_FWD,  SD_ONLIST, { 0,  0}, { 6,  6}, {"sample_index_onlist.txt"} },
+			//{ SD_R2, SD_REV,  SD_ONLIST, { 0,  0}, { 8, 11}, {"cb_indrop_bc1.txt"} },
+			//{ SD_R2, SD_REV,   SD_FIXED, { 8, 11}, {22, 22}, {"AAGGCGTCACAAGCAATCACTC"} },
 			{ SD_R2, SD_REV,  SD_ONLIST, {30, 33}, { 8,  8}, {"cb_indrop_bc1.txt"} },
 			//{ SD_R2, SD_REV, SD_RANDOM, { 38, 41}, { 8,  8} }, // umi
 			{ SD_NONE },

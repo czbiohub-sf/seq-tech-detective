@@ -45,6 +45,8 @@ static void add_res(struct res *out, struct res const *in)
 // it is illegal to call this function without exiting
 void print_all_fp_hits(sd_fp_hits **fp_hits)
 {
+	if (!fp_hits)
+		return;
 	for (; *fp_hits != NULL; ++fp_hits) {
 		print_fp_hits(*fp_hits);
 	}
@@ -73,7 +75,8 @@ void run_checks(size_t seq_len, const char seq[150], struct res *result, sd_fp_h
 				// TODO: which end do we need to mask from again?
 				// for variable-length keys, try all mask lengths
 				for (int i = fp_hit->len.max; i >= (int)fp_hit->len.min; --i) {
-					const uint32_t key      = seq_to_int(seq + pos, i, fp_hit->dir == SD_REV);
+					// submit these as forward, tables are built in both directions
+					const uint64_t key      = seq_to_int(seq + pos, i, 0);
 					size_t        *hitcount = &fp_hit->hits[pos];
 					switch (fp_hit->type) {
 					case SD_ONLIST:
@@ -96,10 +99,21 @@ void run_checks(size_t seq_len, const char seq[150], struct res *result, sd_fp_h
 	}
 }
 
-// serial reading
 struct res fq_read(int fd, sd_fp_hits **fp_hits)
 {
+	FILE      *fp     = fdopen(fd, "r");
+	struct res result = fq_fread(fp, fp_hits);
+	fclose(fp);
+	return result;
+}
+
+// serial reading
+struct res fq_fread(FILE *fp, sd_fp_hits **fp_hits)
+{
 	TracyCZoneS(ctx, 10, 1);
+	if (!fp)
+		abort_msg("file handle does not exist");
+
 	struct res result = {0, 0, 0, NULL};
 
 	// 4096 should be plenty enough for any short read, right ?
@@ -116,7 +130,7 @@ struct res fq_read(int fd, sd_fp_hits **fp_hits)
 	fastq_state state = ID_START;
 
 	size_t ofs = 0; // position in file
-	FILE  *fp  = fdopen(fd, "r");
+
 	// TODO: assuming canonical one-line-per-field FASTQ
 	// declare this restriction, or remove it if proven useful
 	while ((have = getline(&buf, &buflen, fp)) > 0) {
@@ -138,15 +152,13 @@ struct res fq_read(int fd, sd_fp_hits **fp_hits)
 			run_checks(seq_buf_len, seq, &result, fp_hits);
 
 			// increment total read length
-			result.len_reads += seq_len;
+			result.len_reads += seq_len - 1;
 			state = ID2_START;
 			break;
 		case ID2_START: // read + or fail
 			if (buf[0] != '+')
 				goto ILLEGAL;
-			state = ID2;
-			break;
-		case ID2:  // skip until \n
+			// skip until \n
 			state = QUAL;
 			break;
 		case QUAL: // read exactly SEQ_LEN chars -> \n
@@ -165,6 +177,7 @@ struct res fq_read(int fd, sd_fp_hits **fp_hits)
 			abort_msg("bad fastq"); // TODO: report error position
 		}
 	}
+	free(buf);
 
 	if (result.num_reads > 0) {
 		printf("reads: %zi\navg len: %zi\n%f polyt hit rate\n",
@@ -175,6 +188,9 @@ struct res fq_read(int fd, sd_fp_hits **fp_hits)
 	} else {
 		printf("reads: 0\navg len: 0\n0 polyt hit rate\n");
 	}
+
+	result.fp_hits = fp_hits;
+	print_all_fp_hits(result.fp_hits);
 
 	TracyCZoneEnd(ctx);
 	return result;
@@ -282,7 +298,7 @@ struct res read_mt(int fd, off_t cur, off_t len, sd_fp_hits **fp_hits)
 						run_checks(seq_len, seq, &result, fp_hits);
 
 						// increment total read length
-						result.len_reads += seq_len;
+						result.len_reads += seq_len - 1;
 						seq_s = 0;
 						[[fallthrough]];
 					case ID2_START: // read + or fail

@@ -15,5 +15,6 @@ struct res {
 
 // serial reading
 struct res fq_read(int fd, sd_fp_hits **fp_hits);
+struct res fq_fread(FILE *fp, sd_fp_hits **fp_hits);
 // parallel reading
 struct res read_mt(int fd, off_t cur, off_t len, sd_fp_hits **fp_hits);

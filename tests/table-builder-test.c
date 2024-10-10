@@ -1,3 +1,4 @@
+#include <log.h>
 #include <rexo.h>
 #include <table_builder.h>
 
@@ -61,6 +62,30 @@ RX_TEST_CASE(fp_hits, add_expected_ofs, .fixture = mock_fp_hits_fixture)
 	RX_INT_REQUIRE_EQUAL(11, data->ofs->ofs.max);
 	RX_INT_REQUIRE_EQUAL(16, data->ofs->next->ofs.min);
 	RX_INT_REQUIRE_EQUAL(16, data->ofs->next->ofs.max);
+	free(mock_rgn);
+}
+
+RX_TEST_CASE(fp_hits, bc_table_checks, .fixture = mock_fp_hits_fixture)
+{
+	log_set_quiet(true);
+	sd_fp_hits **fp_table = load_fingerprints();
+	log_set_quiet(false);
+
+	for (; *fp_table != NULL; ++fp_table) {
+		sd_fp_hits *fp = *fp_table;
+		if (strcmp(fp->name, "cb_10x_737K-august-2016.txt") == 0)
+			RX_REQUIRE(get_bit(fp->bc_set, seq_to_int32_s("AAACCTGAGAAACCAT", 16)));
+		if (strcmp(fp->name, "cb_10x_737K-august-2016.txt_RC") == 0)
+			RX_REQUIRE(get_bit(fp->bc_set, seq_to_int32_rc_s("AAACCTGAGAAACCAT", 16)));
+		if (strcmp(fp->name, "cb_indrop_bc1.txt") == 0)
+			RX_REQUIRE(get_bit(fp->bc_set, seq_to_int32_s("AAACCGCCTCA", 11)));
+		if (strcmp(fp->name, "cb_indrop_bc1.txt_RC") == 0)
+			RX_REQUIRE(get_bit(fp->bc_set, seq_to_int32_rc_s("AAACCGCCTCA", 11)));
+		if (strcmp(fp->name, "cb_indrop_bc2.txt") == 0)
+			RX_REQUIRE(get_bit(fp->bc_set, seq_to_int32_s("CTGCGATG", 8)));
+		if (strcmp(fp->name, "cb_indrop_bc2.txt_RC") == 0)
+			RX_REQUIRE(get_bit(fp->bc_set, seq_to_int32_rc_s("CTGCGATG", 8)));
+	}
 }
 
 

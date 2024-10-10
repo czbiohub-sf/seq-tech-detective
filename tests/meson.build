@@ -20,4 +20,12 @@ if get_option('test').enabled()
         dependencies: [rexo],
     )
     test('table_builder tests', table_tests_exe)
+
+    detection_tests_exe = executable(
+        'detection-tests',
+        ['detection-test.c', lib_src],
+        include_directories: inc,
+        dependencies: [rexo],
+    )
+    test('synthetic detection tests', detection_tests_exe)
 endif
