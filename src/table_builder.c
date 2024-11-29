@@ -26,6 +26,7 @@ static sd_fp_hits **fingerprint_ids;
 // caller must free returned pointer!
 char *repr_fp_hit(sd_fp_hits *fph)
 {
+	TracyCZoneS(ctx, 10, 1);
 	const char fmt[] =
 		"fp_hits { name: %s, dir: %c, type: %c, id: %d, "
 		"ofs: %p {%zd, %zd}, len: {%zi, %zi}, seq: %s }";
@@ -51,20 +52,24 @@ char *repr_fp_hit(sd_fp_hits *fph)
 		     + 1;
 	}
 	free(seq);
+	TracyCZoneEnd(ctx);
 	return buf;
 }
 
 void dbg_log_fp_hit(sd_fp_hits *fph)
 {
+	TracyCZoneS(ctx, 10, 1);
 	char *msg = repr_fp_hit(fph);
 	log_trace("%s", msg);
 	free(msg);
+	TracyCZoneEnd(ctx);
 }
 
 // get stringified hit counts by position in specified fingerprint counter
 // caller must free returned pointer!
 char *fp_hits_tostr(sd_fp_hits *fph)
 {
+	TracyCZoneS(ctx, 10, 1);
 	const int sz  = 2048;
 	char     *msg = malloc(sz);
 	int       e;
@@ -76,19 +81,23 @@ char *fp_hits_tostr(sd_fp_hits *fph)
 			e += snprintf(msg + e, sizeof(msg) - e, "%d: %zi, ", i, fph->hits[i]);
 	}
 	snprintf(msg + e, sizeof(msg) - e, "]");
+	TracyCZoneEnd(ctx);
 	return msg;
 }
 
 void print_fp_hits(sd_fp_hits *fph)
 {
+	TracyCZoneS(ctx, 10, 1);
 	char *msg = fp_hits_tostr(fph);
 	printf("%s\n", msg);
 	free(msg);
+	TracyCZoneEnd(ctx);
 }
 
 // sd_fp_hits constructor
 sd_fp_hits *init_fp_hit(const sd_fingerprint *rgn, int id, enum sd_read_dir dir)
 {
+	TracyCZoneS(ctx, 10, 1);
 	sd_fp_hits *fp_id = (sd_fp_hits *)malloc(sizeof(sd_fp_hits));
 	char       *name  = malloc(strlen(rgn->sequence) + 1 + 3 * (dir == SD_REV));
 	strncpy(name, rgn->sequence, strlen(rgn->sequence) + 1);
@@ -108,12 +117,14 @@ sd_fp_hits *init_fp_hit(const sd_fingerprint *rgn, int id, enum sd_read_dir dir)
 	fp_id->ofs->ofs.min = rgn->ofs.min;
 	fp_id->ofs->ofs.max = rgn->ofs.max;
 
+	TracyCZoneEnd(ctx);
 	return fp_id;
 }
 
 // add an offset to the list of expected offsets for a region
 void update_expected_ofs(sd_fp_hits *fp_id, const sd_fingerprint *rgn)
 {
+	TracyCZoneS(ctx, 10, 1);
 	sd_range n_ofs = rgn->ofs;
 	if (fp_id->ofs == NULL) {
 		fp_id->ofs       = (sd_fp_ofs_node *)malloc(sizeof(sd_fp_ofs_node));
@@ -141,25 +152,33 @@ void update_expected_ofs(sd_fp_hits *fp_id, const sd_fingerprint *rgn)
 	cur_ofs_node->next       = (sd_fp_ofs_node *)malloc(sizeof(sd_fp_ofs_node));
 	cur_ofs_node->next->ofs  = (sd_range){.min = n_ofs.min, .max = n_ofs.max};
 	cur_ofs_node->next->next = NULL;
+	TracyCZoneEnd(ctx);
 }
 
 
 ENTRY *get_fingerprint_id(const sd_fingerprint *rgn)
 {
+	TracyCZoneS(ctx, 10, 1);
 	ENTRY ol_entry;
 	ol_entry.key  = (char *)rgn->sequence;
 	ol_entry.data = NULL;
+	TracyCZoneEnd(ctx);
 	return hsearch(ol_entry, FIND);
 }
 
 void ll_delete(sd_fp_ofs_node *ofs)
 {
+	TracyCZoneS(ctx, 10, 1);
+	if (ofs == NULL)
+		return;
 	if (ofs->next)
 		ll_delete(ofs->next);
 	free(ofs->next);
+	TracyCZoneEnd(ctx);
 }
 void delete_fingerprints(sd_fp_hits **fp_hits)
 {
+	TracyCZoneS(ctx, 10, 1);
 	for (; *fp_hits != NULL; ++fp_hits) {
 		sd_fp_hits *fp_hit = *fp_hits;
 		if (fp_hit->type == SD_ONLIST)
@@ -168,6 +187,7 @@ void delete_fingerprints(sd_fp_hits **fp_hits)
 		free(fp_hit->ofs);
 		free(fp_hit);
 	}
+	TracyCZoneEnd(ctx);
 }
 
 // fingerprint_ids: [fp, fp_rc, fp2, fp2_rc]
@@ -274,61 +294,73 @@ __attribute__((pure)) uint64_t empty(int width, int len) { return width - len * 
 // the 32-bit version compiles to SIMD shuffles when available
 __attribute__((pure)) uint16_t seq_to_int16(const char seq_p[8])
 {
+	TracyCZoneS(ctx, 10, 1);
 	uint16_t result = 0;
 	for (uint8_t i = 0; i < 8; i++) {
 		char base = (seq_p[i] >> 1U) & 0b11;
 		result |= (uint16_t)base << (i * 2);
 	}
+	TracyCZoneEnd(ctx);
 	return result;
 }
 
 __attribute__((pure)) uint32_t seq_to_int32(const char seq_p[16])
 {
+	TracyCZoneS(ctx, 10, 1);
 	uint32_t result = 0;
 	for (uint8_t i = 0; i < 16; i++) {
 		char base = (seq_p[i] >> 1U) & 0b11;
 		result |= (uint32_t)base << (i * 2);
 	}
+	TracyCZoneEnd(ctx);
 	return result;
 }
 
 __attribute__((pure)) uint64_t seq_to_int64(const char seq_p[32])
 {
+	TracyCZoneS(ctx, 10, 1);
 	uint64_t result = 0;
 	for (uint8_t i = 0; i < 32; i++) {
 		char base = (seq_p[i] >> 1U) & 0b11;
 		result |= (uint64_t)base << (i * 2);
 	}
+	TracyCZoneEnd(ctx);
 	return result;
 }
 
 __attribute__((pure)) uint16_t seq_to_int16_rc(const char seq_p[8])
 {
+	TracyCZoneS(ctx, 10, 1);
 	uint16_t result = 0;
 	for (uint8_t i = 0; i < 8; i++) {
 		char base = ((seq_p[i] >> 1U) ^ 0b10) & 0b11;
 		result |= (uint16_t)base << ((7 - i) * 2);
 	}
+	TracyCZoneEnd(ctx);
 	return result;
 }
 
 __attribute__((pure)) uint32_t seq_to_int32_rc(const char seq_p[16])
 {
+	TracyCZoneS(ctx, 10, 1);
 	uint32_t result = 0;
 	for (uint8_t i = 0; i < 16; i++) {
 		char base = ((seq_p[i] >> 1U) ^ 0b10) & 0b11;
 		result |= (uint32_t)base << ((15 - i) * 2);
 	}
+	TracyCZoneEnd(ctx);
 	return result;
 }
 
 __attribute__((pure)) uint64_t seq_to_int64_rc(const char seq_p[32])
 {
+	TracyCZoneS(ctx, 10, 1);
 	uint64_t result = 0;
 	for (uint8_t i = 0; i < 32; i++) {
 		char base = ((seq_p[i] >> 1U) ^ 0b10) & 0b11;
 		result |= (uint64_t)base << ((31 - i) * 2);
 	}
+	TracyCZoneEnd(ctx);
 	return result;
 }
 
@@ -387,11 +419,13 @@ inline uint64_t seq_to_int(const char *seq_p, int len, int rc)
 // convert bit-packed sequence <=32bp to string
 char *int64_to_seq(uint64_t s)
 {
+	TracyCZoneS(ctx, 10, 1);
 	char *seq = malloc(33);
 	for (int i = 31; i >= 0; i--) {
 		seq[i] = "ACTG"[(s & (3UL << i * 2)) >> (i * 2)];
 	}
 	seq[32] = '\0';
+	TracyCZoneEnd(ctx);
 	return seq;
 }
 
@@ -412,6 +446,7 @@ inline int get_bit(const uint32_t *table, const uint32_t key)
 // build bitset lookup tables for a given a barcode list
 uint32_t *build_set(FILE *barcode_file, uint32_t width, enum sd_read_dir dir)
 {
+	TracyCZoneS(ctx, 10, 1);
 	const size_t MAX_ENTRIES = 1UL << width;
 	// entries / bits-per-cell * bytes-per-cell
 	uint32_t *table = (uint32_t *)calloc(MAX_ENTRIES >> KBITS, sizeof(uint32_t));
@@ -481,6 +516,7 @@ uint32_t *build_set(FILE *barcode_file, uint32_t width, enum sd_read_dir dir)
 
 	free(buf);
 	// TODO: check and report nread == -1, nread == 0, and small positive nread
+	TracyCZoneEnd(ctx);
 	return table;
 }
 

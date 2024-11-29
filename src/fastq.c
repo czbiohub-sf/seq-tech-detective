@@ -45,11 +45,13 @@ static void add_res(struct res *out, struct res const *in)
 // it is illegal to call this function without exiting
 void print_all_fp_hits(sd_fp_hits **fp_hits)
 {
+	TracyCZoneS(ctx, 10, 1);
 	if (!fp_hits)
 		return;
 	for (; *fp_hits != NULL; ++fp_hits) {
 		print_fp_hits(*fp_hits);
 	}
+	TracyCZoneEnd(ctx);
 }
 
 // for a single check, we need to:
@@ -61,6 +63,7 @@ void print_all_fp_hits(sd_fp_hits **fp_hits)
 // TODO: this is just a proof of concept version of checks for now
 void run_checks(size_t seq_len, const char seq[150], struct res *result, sd_fp_hits **fp_hits)
 {
+	TracyCZoneS(ctx, 5, 1);
 	for (; *fp_hits != NULL; ++fp_hits) {
 		sd_fp_hits *fp_hit = *fp_hits;
 		// fixed location mode;
@@ -71,11 +74,13 @@ void run_checks(size_t seq_len, const char seq[150], struct res *result, sd_fp_h
 			// if seq_len can't accomodate the sequence position, skip this one
 			if ((long)seq_len < end + fp_hit->len.max)
 				continue;
+			// TODO: performance problem here?
 			for (int pos = start; pos <= end; ++pos) {
 				// TODO: which end do we need to mask from again?
 				// for variable-length keys, try all mask lengths
 				for (int i = fp_hit->len.max; i >= (int)fp_hit->len.min; --i) {
 					// submit these as forward, tables are built in both directions
+					TracyCZoneNS(ctx, "hit", 10, 1);
 					const uint64_t key      = seq_to_int(seq + pos, i, 0);
 					size_t        *hitcount = &fp_hit->hits[pos];
 					switch (fp_hit->type) {
@@ -93,17 +98,22 @@ void run_checks(size_t seq_len, const char seq[150], struct res *result, sd_fp_h
 					case SD_RANDOM: // we shouldn't get this.
 						break;
 					}
+					TracyCZoneEnd(ctx);
 				}
 			}
 		}
 	}
+	TracyCZoneEnd(ctx);
 }
 
 struct res fq_read(int fd, sd_fp_hits **fp_hits)
 {
+	TracyCZoneS(ctx, 10, 1);
 	FILE      *fp     = fdopen(fd, "r");
 	struct res result = fq_fread(fp, fp_hits);
 	fclose(fp);
+
+	TracyCZoneEnd(ctx);
 	return result;
 }
 

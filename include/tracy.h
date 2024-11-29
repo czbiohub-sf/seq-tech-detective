@@ -5,6 +5,7 @@
 #include "tracy/TracyC.h"
 #else
 #define TracyCZoneS(ctx, d, active)
+#define TracyCZoneNS(ctx, name, d, active)
 #define TracyCZoneEnd(ctx)
 #define TracyCSetThreadName(name)
 #endif
