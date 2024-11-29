@@ -2,7 +2,7 @@
 subprojects/tracy
 subprojects/rexo
 build
-seq-detective
+seq-detective/
 
 # runtime generated files
 ref/*

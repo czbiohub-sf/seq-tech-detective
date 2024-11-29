@@ -1,0 +1,233 @@
+#!/bin/bash
+
+# interface for download an SRA accession and call all seq-detective phases
+#
+# input:
+#  - SRA accession
+#  - reference genome
+#
+# assumptions:
+#  - hisat2 in path
+#  - sra-tools in path
+
+# commands
+# - index
+#   just download and create index[es] for phase 2 mapping
+
+# index help
+COMMAND="${1}"
+#echo "cli: seq-detective ${COMMAND}" >&2
+
+# gnu readlink only
+SCRIPTDIR="$(dirname -- "$(readlink -f -- "$BASH_SOURCE")")"
+
+index() {
+  set -xe
+  # download
+  path=$("${SCRIPTDIR}/scripts/assembly-search" "${1}")
+  # find important files
+  ls ${path}
+  fastaline=$(grep -e "\.fa\|\.fna\|\.fasta" "${path}/md5sum.txt")
+  read -d '' -r md5 fasta <<<"${fastaline}" || true
+  gtfline=$(grep -e "\.gtf" "${path}/md5sum.txt")
+  read -d '' -r md5 gtf <<<"${gtfline}" || true
+
+  echo "fasta: ${fasta}"
+  echo "gtf: ${gtf}"
+  # build index
+  set -x
+  "${SCRIPTDIR}/scripts/index-build" "${path}/${fasta}" "${path}/${gtf}"
+  return 0
+}
+
+# fingerprint
+# download SRA with fasterq-dump, then call seq-detective and hisat2
+# arguments: SRA accession, reference genome path
+fingerprint() {
+  set -xe
+  # download with fasterq-dump
+  fasterq-dump --split-files "${1}" --outdir "${1}"
+  # find files (either *.fastq or *_1.fastq and *_2.fastq)
+  fastq=$(ls "${1}"/*.fastq | head -n 1)
+  if [ -z "${fastq}" ]; then
+    fastq1=$(ls "${1}"/*_1.fastq | head -n 1)
+    fastq2=$(ls "${1}"/*_2.fastq | head -n 1)
+  fi
+  # run seq-detective
+  #seq-detective 
+  echo "UNIMPLEMENTED" &>2 
+  exit 1
+  # TODO
+}
+
+sum() {
+  paste -sd+ - | sed 's/\+ $//' | bc
+}
+
+hit_sum() {
+  echo "${1}" | cut -d'[' -f2 | cut -d']' -f1 | tr ',' '\n' | cut -d':' -f2 | sum
+}
+fp_hit_rate() {
+  file="${1}"
+  key="${2}"
+  total_reads="${3}"
+
+  hits=$(grep -P "${key}: \[.*\]" "${file}")
+  fp_hit_sum=$(hit_sum "${hits}")
+  fp_hit_sum=${fp_hit_sum:-0}
+  echo "scale=5; ${fp_hit_sum} / ${total_reads}" | bc
+}
+
+# parse seq-detective fingerprint output
+reads=0
+avglen=0
+polyt="0.0"
+fp_10x_v2="0.0"
+fp_10x_v2_rc="0.0"
+fp_10x_v3="0.0"
+fp_10x_v3_rc="0.0"
+fp_indrop_bc1="0.0"
+fp_indrop_bc1_rc="0.0"
+fp_indrop_link="0.0"
+fp_indrop_link_rc="0.0"
+fp_indrop_bc2="0.0"
+fp_indrop_bc2_rc="0.0"
+parse_fingerprint() {
+  file="${1}"
+    # reads: 825870
+    # avg len: 75
+    # 0.000000 polyt hit rate
+    # cb_10x_737K-august-2016.txt: [0: 168, ]
+    # cb_10x_737K-august-2016.txt_RC: [0: 149, ]
+    # cb_indrop_bc1.txt: [0: 2152, 30: 2115, 31: 2273, 32: 2207, 33: 2393, ]
+    # cb_indrop_bc1.txt_RC: [0: 80, 30: 275, 31: 225, 32: 198, 33: 222, ]
+    # AAGGCGTCACAAGCAATCACTC: []
+    # AAGGCGTCACAAGCAATCACTC_RC: []
+    # cb_indrop_bc2.txt: [30: 4833, 31: 4743, 32: 4763, 33: 4819, ]
+    # cb_indrop_bc2.txt_RC: [30: 4769, 31: 4707, 32: 4771, 33: 4735, ]
+
+    export reads=$(grep -P "reads: \d+" "${file}" | cut -d' ' -f2)
+    export avglen=$(grep -P "avg len: \d+" "${file}" | cut -d' ' -f3)
+    export polyt=$(grep -P "polyt hit rate" "${file}" | cut -d' ' -f1)
+    # 10x
+    export fp_10x_v2=$(fp_hit_rate "${file}" "cb_10x_737K-august-2016.txt" "${reads}")
+    fp_10x_v2_rc=$(fp_hit_rate "${file}" "cb_10x_737K-august-2016.txt_RC" "${reads}")
+    fp_10x_v3=$(fp_hit_rate "${file}" "cb_10x_737K-august-2016_v3.txt" "${reads}")
+    fp_10x_v3_rc=$(fp_hit_rate "${file}" "cb_10x_737K-august-2016_v3.txt_RC" "${reads}")
+    # indrop
+    fp_indrop_bc1=$(fp_hit_rate "${file}" "cb_indrop_bc1.txt" "${reads}")
+    fp_indrop_bc1_rc=$(fp_hit_rate "${file}" "cb_indrop_bc1.txt_RC" "${reads}")
+    fp_indrop_link=$(fp_hit_rate "${file}" "AAGGCGTCACAAGCAATCACTC" "${reads}")
+    fp_indrop_link_rc=$(fp_hit_rate "${file}" "AAGGCGTCACAAGCAATCACTC_RC" "${reads}")
+    fp_indrop_bc2=$(fp_hit_rate "${file}" "cb_indrop_bc2.txt" "${reads}")
+    fp_indrop_bc2_rc=$(fp_hit_rate "${file}" "cb_indrop_bc2.txt_RC" "${reads}")
+}
+
+# parse hisat2/featurecounts summary
+mapping_rate="0.0"
+nofeature_rate="0.0"
+lowquality_rate="0.0"
+sparsity="0.0"
+pos_strand_rate="0.0"
+parse_mapping() {
+  countsfile="${1}"
+  countssummaryfile="${2}"
+  total_reads="${3}"
+
+  unmapped=$(grep -P "Unassigned_Unmapped" "${countssummaryfile}" | cut -f2)
+  nofeatures=$(grep -P "Unassigned_NoFeatures" "${countssummaryfile}" | cut -f2)
+  unassigned_lowqual=$(grep -P "Unassigned_MappingQuality" "${countssummaryfile}" | cut -f2)
+  zeroes=$(cut "${countsfile}" -f 7 | grep -Pnc "^0$")
+  # feature count output has 1 command header, 1 table header line, so start at line 3
+  totalfeatures=$(tail +3 "${countsfile}" | wc -l)
+  pos_strand_count=$(cut "${countsfile}" -f 5,7 | tr -d ';-' | tr -s '+\t' '1*' | grep '^1' | sum)
+
+  mapping_rate=$(echo "scale=5; 1 - (${unmapped} / ${total_reads})" | bc)
+  nofeature_rate=$(echo "scale=5; ${nofeatures} / ${total_reads}" | bc)
+  lowquality_rate=$(echo "scale=5; ${unassigned_lowqual} / ${total_reads}" | bc)
+  sparsity=$(echo "scale=5; ${zeroes} / ${totalfeatures}" | bc)
+  pos_strand_rate=$(echo "scale=5; ${pos_strand_count} / ${total_reads}" | bc)
+}
+
+# TODO: this function should be obliterated!
+# Quick hack for results!
+fingerprint-rough() {
+    set -e
+    FASTQ="${1}"
+    HISAT2_INDEX="${2}"
+    GTF="${3}"
+    OUTFILE="${4:-/dev/stdout}"
+    PRINT_HEADER="${5:-0}"
+    HISAT2_THREADS="${6:-8}"
+
+    SD_PARAMS=""
+    HISAT_PARAMS="--no-temp-splicesite --new-summary --summary-file /dev/null -k 1 -p ${HISAT2_THREADS}"
+    samfile="${FASTQ}.sam"
+    fingerprintfile="${FASTQ}.fingerprint"
+    countsfile="${FASTQ}.counts"
+    countssummaryfile="${countsfile}.summary"
+
+    # run seq-detective, hisat2, and featureCounts
+    "${SCRIPTDIR}/bin/seq-detective-fp" "${1}" "${SD_PARAMS}" 1> "${fingerprintfile}"
+    hisat2 -x "${HISAT2_INDEX}" -U "${FASTQ}" -S "${samfile}" "${HISAT_PARAMS}"
+    featureCounts -a "${GTF}" -o "${countsfile}" "${samfile}"  1>&2
+
+    # fingerprint summary variables
+    parse_fingerprint "${fingerprintfile}"
+    # mapping summary variables
+    parse_mapping "${countsfile}" "${countssummaryfile}" "${reads}"
+    # clean up intermediate files
+    rm -f "${FASTQ}.sam" "${fingerprintfile}" "${countsfile}" "${countssummaryfile}"
+    # header line
+    GROUPSEP=""
+    if [ "${PRINT_HEADER}" -eq 1 ]; then
+        printf "file\tspots\treadlen\t${GROUPSEP}" 1>> "${OUTFILE}"
+        printf "10x_v2\t10x_v2_rc\t10x_v3\t10x_v3_rc\t${GROUPSEP}" 1>> "${OUTFILE}"
+        printf "fp_indrop_bc1\tfp_indrop_bc1_rc\tfp_indrop_link\tfp_indrop_link_rc\tfp_indrop_bc2\tfp_indrop_bc2_rc\t${GROUPSEP}" 1>> "${OUTFILE}"
+        printf "mapping_rate\tnofeature_rate\tlowqual_rate\tsparsity\tpos_strand_rate\n" 1>> "${OUTFILE}"
+    fi
+    # phase 1 information
+    printf "%s\t%d\t%d\t${GROUPSEP}" ${FASTQ} ${reads} ${avglen} 1>> "${OUTFILE}"
+    printf "%.5f\t%.5f\t%.5f\t%.5f\t${GROUPSEP}" ${fp_10x_v2} ${fp_10x_v2_rc} ${fp_10x_v3} ${fp_10x_v3_rc} 1>> "${OUTFILE}"
+    printf "%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t${GROUPSEP}" ${fp_indrop_bc1} ${fp_indrop_bc1_rc} ${fp_indrop_link} ${fp_indrop_link_rc} ${fp_indrop_bc2} ${fp_indrop_bc2_rc} 1>> "${OUTFILE}"
+    # phase 2 mapping information
+    printf "%.5f\t%.5f\t%.5f\t%.5f\t%.5f\n" ${mapping_rate} ${nofeature_rate} ${lowquality_rate} ${sparsity} ${pos_strand_rate} 1>> "${OUTFILE}"
+}
+
+# switch based on COMMAND
+case "${COMMAND}" in
+  "index")
+    index "${2}"
+    ;;
+  "fingerprint")
+    #echo "fingerprinting..."
+    # file, reference prefix
+    fingerprint-rough "${2}" "${3}" "${4}"
+    ;;
+  "fingerprint-rough")
+    #echo "fingerprinting..."
+    # file, reference prefix
+    fingerprint-rough "${2}" "${3}" "${4}"
+    ;;
+  "help")
+    showhelp
+    ;;
+  *)
+    echo "unknown command: ${COMMAND}"
+    ;;
+esac
+
+# https://ftp.ensembl.org/pub/current/gtf/danio_rerio/
+# 
+# https://ftp.ensembl.org/pub/current/fasta/danio_rerio/dna/
+
+
+# https://ftp.ensembl.org/pub/current/fasta/danio_rerio/dna/Danio_rerio.GRCz11.dna.primary_assembly.fa.gz
+# https://ftp.ensembl.org/pub/current/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.primary_assembly.fa.gz
+# https://ftp.ensembl.org/pub/current/fasta/drosophila_melanogaster/dna/Drosophila_melanogaster.BDGP6.46.dna.toplevel.fa.gz
+# https://ftp.ensembl.org/pub/current/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+
+# https://ftp.ensembl.org/pub/current/gtf/danio_rerio/Danio_rerio.GRCz11.112.gtf.gz
+# https://ftp.ensembl.org/pub/current/gtf/mus_musculus/Mus_musculus.GRCm39.112.gtf.gz
+# https://ftp.ensembl.org/pub/current/gtf/drosophila_melanogaster/Drosophila_melanogaster.BDGP6.46.112.gtf.gz
+# https://ftp.ensembl.org/pub/current/gtf/homo_sapiens/Homo_sapiens.GRCh38.112.gtf.gz

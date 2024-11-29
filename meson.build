@@ -9,7 +9,7 @@ project(
         'c_std=gnu23,gnu2x,c23,c2x',
     ],
 )
-exename = 'seq-detective'
+exename = 'seq-detective-fp'
 
 proj_args = ['-g3', '-fopenmp']
 if get_option('test').enabled()
@@ -74,7 +74,7 @@ if get_option('tracy').enabled()
     endif
 endif
 
-seq_detective = executable(
+seq_detective_fp = executable(
     exename,
     src,
     gnu_symbol_visibility: 'default',
@@ -82,5 +82,8 @@ seq_detective = executable(
     dependencies: deps,
     install: true,
 )
+# supporting scripts
+subdir('scripts')
+
 
 subdir('tests')
