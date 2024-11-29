@@ -1,7 +1,7 @@
 # supporting scripts
 fs.copyfile('safe-exec.sh','safe-exec.sh', install: true, install_dir: 'bin/scripts')
 fs.copyfile('seqspec2detective.py', 'seqspec2detective.py', install: true, install_dir: 'bin/scripts')
-fs.copyfile('scan-species.sh', 'scan-species.sh', install: true, install_dir: 'scripts')
+fs.copyfile('zebrafish-metadata.sh', 'scan-species.sh', install: true, install_dir: 'scripts')
 fs.copyfile('metadata-annotate.py', 'metadata-annotate.py', install: true, install_dir: 'bin/scripts')
 fs.copyfile('assembly-search', 'assembly-search', install: true, install_dir: 'bin/scripts')
 fs.copyfile('index-build', 'index-build', install: true, install_dir: 'bin/scripts')
