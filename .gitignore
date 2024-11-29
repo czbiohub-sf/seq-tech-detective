@@ -4,6 +4,9 @@ subprojects/rexo
 build
 seq-detective
 
+# runtime generated files
+ref/*
+
 #
 src/test
 fastq
