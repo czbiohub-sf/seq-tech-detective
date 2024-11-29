@@ -1,0 +1,11 @@
+name: seq-detective
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - conda-forge::python>=3.10
+  - bioconda::seqspec>=0.3.0
+  - bioconda::sra-tools=3.1.1
+  - bioconda::hisat2=2.2.*
+  - bioconda::entrez-direct=22.*
+  - bioconda::subread=2.0.6
