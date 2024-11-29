@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-import io
 import gzip
 from pathlib import Path
 import re
