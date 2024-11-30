@@ -1,9 +1,9 @@
 #!/bin/bash
 
 #SBATCH --job-name=seq-detective-scan
-#SBATCH --array=0-2
-#SBATCH --time=00:10:00
-#SBATCH --partition=normal
+#SBATCH --array=0-249
+#SBATCH --time=00:24:00
+#SBATCH --partition=preempted
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=8G
@@ -17,30 +17,35 @@ module load mamba
 mamba activate seq-detective
 
 ACCESSION_FILE=accessions.txt
-HISAT2_INDEX=hisat2-index/GCF_000002035.6_GRCz11_genomic
-GTF=ref/Danio-rerio_GRCz11/ncbi_dataset/data/GCF_000002035.6/GCF_000002035.6_GRCz11_genomic.fna
-
+HISAT2_INDEX="${PWD}/hisat2-index/GCF_000002035.6_GRCz11_genomic"
+GTF="${PWD}/ref/Danio-rerio_GRCz11/ncbi_dataset/data/GCF_000002035.6/GCF_000002035.6_GRCz11_genomic.fna"
+workdir="$(mktemp -d)"
 
 #random sleep based on job array index to avoid overloading the server
 sleep $((SLURM_ARRAY_TASK_ID % (SLURM_ARRAY_TASK_COUNT / 2)))
 readarray -t ACCESSIONS < accessions.txt
 
-TASKSIZE=$(( ${#ACCESSIONS[@]} / SLURM_ARRAY_TASK_COUNT ))
+TASKSIZE=$(( ( ${#ACCESSIONS[@]} + SLURM_ARRAY_TASK_COUNT - 1 ) / SLURM_ARRAY_TASK_COUNT ))
 START=$(( SLURM_ARRAY_TASK_ID * TASKSIZE ))
 END=$(( START + TASKSIZE ))
+TASK_OUTPUT="${PWD}/slurm.out/scan-${SLURM_ARRAY_JOB_ID}-${SLURM_ARRAY_TASK_ID}.tsv"
+
+pushd "$workdir"
 
 fastqdumpwithlimit() {
     ACCESSION=$1
     LIMIT=$2
-    fastq-dump $ACCESSION -X $LIMIT
+    fastq-dump --split-3 $ACCESSION -X $LIMIT
     files=$($(ls -1 "$ACCESSION*"))
     echo $files
 }
 
+sam2fastq_cpus=$(( SLURM_CPUS_PER_TASK - 4 ))
+[[ $sam2fastq_cpus -lt 1 ]] && sam2fastq_cpus=1
 samdumpwithlimit() {
     ACCESSION=$1
     LIMIT=$(( $2 * 4 ))
-    sam2fastq_param="-1 $ACCESSION.1.fastq.down -2 $ACCESSION.2.fastq.down -0 $ACCESSION.fastq.down"
+    sam2fastq_param="-@ $sam2fastq_cpus -1 $ACCESSION.1.fastq.down -2 $ACCESSION.2.fastq.down -0 $ACCESSION.fastq.down"
     rm -f "${ACCESSION}.sampipe" "$ACCESSION.1.fastq.down" "$ACCESSION.2.fastq.down" "$ACCESSION.fastq.down"
     mkfifo "${ACCESSION}.sampipe"
     mkfifo $ACCESSION.1.fastq.down $ACCESSION.2.fastq.down $ACCESSION.fastq.down
@@ -71,28 +76,6 @@ samdumpwithlimit() {
     fi
 }
 
-fingerprint-rough() {
-    FASTQ="${1}"
-    HISAT2_INDEX="${2}"
-    GTF="${3}"
-
-    SD_PARAMS=""
-    HISAT_PARAMS="--no-temp-splicesite --summary-file /dev/null -k 1 -p ${HISAT2_THREADS}"
-
-    seq-detective-fp "${1}" "${SD_PARAMS}" > "${FASTQ}.fingerprint"
-    hisat2 -x "${HISAT2_INDEX}" -U "${FASTQ}" -S "${FASTQ}.sam" "${HISAT_PARAMS}"
-    featureCounts -a "${GTF}" -o "${FASTQ}.counts" "${FASTQ}.sam"
-    zeroes=$(cut "${FASTQ}.counts" -f 7 | grep -Pn "^0$")
-    totalfeatures=$(wc -l "${FASTQ}.counts" | cut -d' ' -f1)
-    # fingerprint summary
-    # phase 1 information
-    printf "%s\t%d\t" ${FASTQ} ${readlen}
-    printf "%d\t%d\t%d\t%d\t" ${10x_v2} ${10x_v2_rc} ${10x_v3} ${10x_v3_rc}
-    printf "%d\t%d\t%d\t%d\t" ${indrop_bc1} ${indrop_bc1_rc} ${indrop_link} ${indrop_link_rc} ${indrop_bc2} ${indrop_bc2_rc}
-    # phase 2 mapping information
-    printf "%d\t%d\t%d\t%d\t" ${mappingrate} ${sparsity}
-}
-
 for idx in $(seq $START $END); do
     if [ $idx -ge ${#ACCESSIONS[@]} ]; then
         break
@@ -105,33 +88,40 @@ for idx in $(seq $START $END); do
         # one or more fastq mates, eg SRR24043286
         files=$(fastqdumpwithlimit $ACCESSION 2000000)
         for file in $files; do
-            seq-detective fingerprint-rough $file $HISAT2_INDEX $GTF
+            seq-detective fingerprint-rough $file $HISAT2_INDEX $GTF | tee -a "${TASK_OUTPUT}"
+            rm $file
         done
     elif [[ $types == *"10X Genomics bam file"* ]]; then
         # 10X Genomics bam file, eg SRR17117610
         # seq-detective doesn't try to handle 10x genomics bam files with bc in tags
         files=$(samdumpwithlimit $ACCESSION 2000000)
         for file in $files; do
-            seq-detective fingerprint-rough $file $HISAT2_INDEX $GTF
+            seq-detective fingerprint-rough $file $HISAT2_INDEX $GTF | tee -a "${TASK_OUTPUT}"
+            rm $file
         done
     elif [[ $types == *"bam"* ]]; then
         # bam file, eg ERR1251894
         files=$(samdumpwithlimit $ACCESSION 2000000)
         for file in $files; do
-            seq-detective fingerprint-rough $file $HISAT2_INDEX $GTF
+            seq-detective fingerprint-rough $file $HISAT2_INDEX $GTF | tee -a "${TASK_OUTPUT}"
+            rm $file
         done
     elif [[ $types == *"cram"* ]]; then
         # cram file, eg ERR2788340
         files=$(samdumpwithlimit $ACCESSION 2000000)
         for file in $files; do
-            seq-detective fingerprint-rough $file $HISAT2_INDEX $GTF
+            seq-detective fingerprint-rough $file $HISAT2_INDEX $GTF | tee -a "${TASK_OUTPUT}"
+            rm $file
         done
     else
         # unknown file type, try dumping as fastq
         echo "Unknown file type: $types"
         files=$(fastqdumpwithlimit $ACCESSION 2000000)
         for file in $files; do
-            seq-detective fingerprint-rough $file $HISAT2_INDEX $GTF
+            seq-detective fingerprint-rough $file $HISAT2_INDEX $GTF | tee -a "${TASK_OUTPUT}"
+            rm $file
         done
     fi
 done
+
+popd
