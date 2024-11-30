@@ -106,11 +106,11 @@ parse_fingerprint() {
     # cb_indrop_bc2.txt: [30: 4833, 31: 4743, 32: 4763, 33: 4819, ]
     # cb_indrop_bc2.txt_RC: [30: 4769, 31: 4707, 32: 4771, 33: 4735, ]
 
-    export reads=$(grep -P "reads: \d+" "${file}" | cut -d' ' -f2)
-    export avglen=$(grep -P "avg len: \d+" "${file}" | cut -d' ' -f3)
-    export polyt=$(grep -P "polyt hit rate" "${file}" | cut -d' ' -f1)
+    reads=$(grep -P "reads: \d+" "${file}" | cut -d' ' -f2)
+    avglen=$(grep -P "avg len: \d+" "${file}" | cut -d' ' -f3)
+    polyt=$(grep -P "polyt hit rate" "${file}" | cut -d' ' -f1)
     # 10x
-    export fp_10x_v2=$(fp_hit_rate "${file}" "cb_10x_737K-august-2016.txt" "${reads}")
+    fp_10x_v2=$(fp_hit_rate "${file}" "cb_10x_737K-august-2016.txt" "${reads}")
     fp_10x_v2_rc=$(fp_hit_rate "${file}" "cb_10x_737K-august-2016.txt_RC" "${reads}")
     fp_10x_v3=$(fp_hit_rate "${file}" "cb_10x_737K-august-2016_v3.txt" "${reads}")
     fp_10x_v3_rc=$(fp_hit_rate "${file}" "cb_10x_737K-august-2016_v3.txt_RC" "${reads}")
@@ -129,6 +129,7 @@ nofeature_rate="0.0"
 lowquality_rate="0.0"
 sparsity="0.0"
 pos_strand_rate="0.0"
+avg_length="0.0"
 parse_mapping() {
   countsfile="${1}"
   countssummaryfile="${2}"
@@ -136,17 +137,21 @@ parse_mapping() {
 
   unmapped=$(grep -P "Unassigned_Unmapped" "${countssummaryfile}" | cut -f2)
   nofeatures=$(grep -P "Unassigned_NoFeatures" "${countssummaryfile}" | cut -f2)
+  assigned=$(grep -P "Assigned" "${countssummaryfile}" | cut -f2)
   unassigned_lowqual=$(grep -P "Unassigned_MappingQuality" "${countssummaryfile}" | cut -f2)
   zeroes=$(cut "${countsfile}" -f 7 | grep -Pnc "^0$")
   # feature count output has 1 command header, 1 table header line, so start at line 3
   totalfeatures=$(tail +3 "${countsfile}" | wc -l)
+  nonzeroes=$((totalfeatures - zeroes)) 
   pos_strand_count=$(cut "${countsfile}" -f 5,7 | tr -d ';-' | tr -s '+\t' '1*' | grep '^1' | sum)
+  genelengthtotal=$(tail +3 "${countsfile}" | cut -f 6,7 | grep -v "\t0$" | cut -f1 | sum)
 
   mapping_rate=$(echo "scale=5; 1 - (${unmapped} / ${total_reads})" | bc)
   nofeature_rate=$(echo "scale=5; ${nofeatures} / ${total_reads}" | bc)
   lowquality_rate=$(echo "scale=5; ${unassigned_lowqual} / ${total_reads}" | bc)
   sparsity=$(echo "scale=5; ${zeroes} / ${totalfeatures}" | bc)
-  pos_strand_rate=$(echo "scale=5; ${pos_strand_count} / ${total_reads}" | bc)
+  pos_strand_rate=$(echo "scale=5; ${pos_strand_count} / ${assigned}" | bc)
+  avg_length=$(echo "scale=3; ${genelengthtotal} / ${nonzeroes}" | bc)
 }
 
 # TODO: this function should be obliterated!
@@ -170,7 +175,8 @@ fingerprint-rough() {
     # run seq-detective, hisat2, and featureCounts
     "${SCRIPTDIR}/bin/seq-detective-fp" "${1}" "${SD_PARAMS}" 1> "${fingerprintfile}"
     hisat2 -x "${HISAT2_INDEX}" -U "${FASTQ}" -S "${samfile}" "${HISAT_PARAMS}"
-    featureCounts -a "${GTF}" -o "${countsfile}" "${samfile}"  1>&2
+    # consider -Q <num> quality threshold?
+    featureCounts -a "${GTF}" -T "${HISAT2_THREADS}" -o "${countsfile}" "${samfile}"  1>&2
 
     # fingerprint summary variables
     parse_fingerprint "${fingerprintfile}"
@@ -184,14 +190,14 @@ fingerprint-rough() {
         printf "file\tspots\treadlen\t${GROUPSEP}" 1>> "${OUTFILE}"
         printf "10x_v2\t10x_v2_rc\t10x_v3\t10x_v3_rc\t${GROUPSEP}" 1>> "${OUTFILE}"
         printf "fp_indrop_bc1\tfp_indrop_bc1_rc\tfp_indrop_link\tfp_indrop_link_rc\tfp_indrop_bc2\tfp_indrop_bc2_rc\t${GROUPSEP}" 1>> "${OUTFILE}"
-        printf "mapping_rate\tnofeature_rate\tlowqual_rate\tsparsity\tpos_strand_rate\n" 1>> "${OUTFILE}"
+        printf "mapping_rate\tnofeature_rate\tlowqual_rate\tsparsity\tpos_strand_rate\tavg_gene_size\n" 1>> "${OUTFILE}"
     fi
     # phase 1 information
     printf "%s\t%d\t%d\t${GROUPSEP}" ${FASTQ} ${reads} ${avglen} 1>> "${OUTFILE}"
     printf "%.5f\t%.5f\t%.5f\t%.5f\t${GROUPSEP}" ${fp_10x_v2} ${fp_10x_v2_rc} ${fp_10x_v3} ${fp_10x_v3_rc} 1>> "${OUTFILE}"
     printf "%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t${GROUPSEP}" ${fp_indrop_bc1} ${fp_indrop_bc1_rc} ${fp_indrop_link} ${fp_indrop_link_rc} ${fp_indrop_bc2} ${fp_indrop_bc2_rc} 1>> "${OUTFILE}"
     # phase 2 mapping information
-    printf "%.5f\t%.5f\t%.5f\t%.5f\t%.5f\n" ${mapping_rate} ${nofeature_rate} ${lowquality_rate} ${sparsity} ${pos_strand_rate} 1>> "${OUTFILE}"
+    printf "%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t%.3f\n" ${mapping_rate} ${nofeature_rate} ${lowquality_rate} ${sparsity} ${pos_strand_rate} ${avg_length} 1>> "${OUTFILE}"
 }
 
 # switch based on COMMAND
