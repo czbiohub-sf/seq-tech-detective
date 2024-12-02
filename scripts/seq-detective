@@ -22,9 +22,9 @@ COMMAND="${1}"
 SCRIPTDIR="$(dirname -- "$(readlink -f -- "$BASH_SOURCE")")"
 
 index() {
-  set -xe
+  set -e
   # download
-  path=$("${SCRIPTDIR}/scripts/assembly-search" "${1}")
+  path=$("${SCRIPTDIR}/bin/scripts/assembly-search" "${1}")
   # find important files
   ls ${path}
   fastaline=$(grep -e "\.fa\|\.fna\|\.fasta" "${path}/md5sum.txt")
@@ -36,7 +36,7 @@ index() {
   echo "gtf: ${gtf}"
   # build index
   set -x
-  "${SCRIPTDIR}/scripts/index-build" "${path}/${fasta}" "${path}/${gtf}"
+  "${SCRIPTDIR}/bin/scripts/index-build" "${path}/${fasta}" "${path}/${gtf}"
   return 0
 }
 
@@ -123,6 +123,20 @@ parse_fingerprint() {
     fp_indrop_bc2_rc=$(fp_hit_rate "${file}" "cb_indrop_bc2.txt_RC" "${reads}")
 }
 
+divide() {
+  if [ "${2}" -eq 0 ]; then
+    echo "NA"
+  else
+    echo "scale=5; (${1} / ${2})" | bc
+  fi
+}
+divide_2() {
+  if [ "${2}" -eq 0 ]; then
+    echo "NA"
+  else
+    echo "scale=5; 1 - (${1} / ${2})" | bc
+  fi
+}
 # parse hisat2/featurecounts summary
 mapping_rate="0.0"
 nofeature_rate="0.0"
@@ -141,17 +155,17 @@ parse_mapping() {
   unassigned_lowqual=$(grep -P "Unassigned_MappingQuality" "${countssummaryfile}" | cut -f2)
   zeroes=$(cut "${countsfile}" -f 7 | grep -Pnc "^0$")
   # feature count output has 1 command header, 1 table header line, so start at line 3
-  totalfeatures=$(tail +3 "${countsfile}" | wc -l)
+  totalfeatures=$(tail -n +3 "${countsfile}" | wc -l)
   nonzeroes=$((totalfeatures - zeroes)) 
   pos_strand_count=$(cut "${countsfile}" -f 5,7 | tr -d ';-' | tr -s '+\t' '1*' | grep '^1' | sum)
-  genelengthtotal=$(tail +3 "${countsfile}" | cut -f 6,7 | grep -v "\t0$" | cut -f1 | sum)
+  genelengthtotal=$(tail -n +3 "${countsfile}" | cut -f 6,7 | grep -v "\t0$" | cut -f1 | sum)
 
-  mapping_rate=$(echo "scale=5; 1 - (${unmapped} / ${total_reads})" | bc)
-  nofeature_rate=$(echo "scale=5; ${nofeatures} / ${total_reads}" | bc)
-  lowquality_rate=$(echo "scale=5; ${unassigned_lowqual} / ${total_reads}" | bc)
-  sparsity=$(echo "scale=5; ${zeroes} / ${totalfeatures}" | bc)
-  pos_strand_rate=$(echo "scale=5; ${pos_strand_count} / ${assigned}" | bc)
-  avg_length=$(echo "scale=3; ${genelengthtotal} / ${nonzeroes}" | bc)
+  mapping_rate=$(divide_2 "${unmapped}" "${total_reads}")
+  nofeature_rate=$(divide "${nofeatures}" "${total_reads}")
+  lowquality_rate=$(divide "${unassigned_lowqual}" "${total_reads}")
+  sparsity=$(divide "${zeroes}" "${totalfeatures}")
+  pos_strand_rate=$(divide "${pos_strand_count}" "${assigned}")
+  avg_length=$(divide "${genelengthtotal}" "${nonzeroes}")
 }
 
 # TODO: this function should be obliterated!
@@ -166,7 +180,7 @@ fingerprint-rough() {
     HISAT2_THREADS="${6:-8}"
 
     SD_PARAMS=""
-    HISAT_PARAMS="--no-temp-splicesite --new-summary --summary-file /dev/null -k 1 -p ${HISAT2_THREADS}"
+    HISAT_PARAMS="--no-temp-splicesite --mm --new-summary --summary-file /dev/null -k 1 -p ${HISAT2_THREADS}"
     samfile="${FASTQ}.sam"
     fingerprintfile="${FASTQ}.fingerprint"
     countsfile="${FASTQ}.counts"

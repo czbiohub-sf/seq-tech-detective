@@ -4,8 +4,10 @@ channels:
   - bioconda
 dependencies:
   - conda-forge::python>=3.10
+  - conda-forge::polars==1.16.*
   - bioconda::seqspec>=0.3.0
   - bioconda::sra-tools=3.1.1
   - bioconda::hisat2=2.2.*
   - bioconda::entrez-direct=22.*
   - bioconda::subread=2.0.6
+  - bioconda::samtools=1.16.*

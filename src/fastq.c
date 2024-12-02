@@ -282,8 +282,17 @@ struct res read_mt(int fd, off_t cur, off_t len, sd_fp_hits **fp_hits)
 					case START_SKIP: // skip until \n @
 						SCAN('\n');
 						PEEK();
-						if (c == '@')
+						if (c == '@') {
+							char *save = pos;
+							// check the next line in case this is a sus QUAL impostor
+							SCAN('\n');
+							PEEK();
+							// if we don't see another @, restore our previous START candidate.
+							// otherwise, the first was QUAL, not START; continue from here.
+							if (c != '@')
+								pos = save;
 							state = ID_START;
+						}
 						break;     // no fallthrough, keep scanning until we get to start state.
 					case ID_START: // read @ or fail
 						state = ID_START;
@@ -340,6 +349,7 @@ struct res read_mt(int fd, off_t cur, off_t len, sd_fp_hits **fp_hits)
 					default:;
 					ILLEGAL:
 						// illegal fastq_state ?
+						fprintf(stderr, "fastq error around %zi\n", block * BLKSIZE + (pos - buf));
 						abort_msg("bad fastq"); // TODO: report error position
 					}
 
