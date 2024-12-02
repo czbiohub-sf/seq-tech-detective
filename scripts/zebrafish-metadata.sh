@@ -10,7 +10,7 @@
 METADATAXML=${1:-zf.xml}
 OUTDIR=${2:-intermediate}
 # RUN
-xtract -input "${METADATAXML}" -head "accession\talias\texperiment\tpool_member\ttotal_spots\ttotal_bases\tpublished_date\ttitle\tspot_descriptor\tprocessing\tread:length\tbase:count\tfilename\trun_attributes" \
+xtract -input "${METADATAXML}" -head "accession\talias\texperiment\tpool_member\ttotal_spots\ttotal_bases\tpublished_date\ttitle\tspot_descriptor\tprocessing\tread:length\tbase:count\tfilename\tsemantic_name\trun_attributes" \
     -pattern RUN -def "NA" -tab "\t" -sep ";" \
     -element RUN@accession RUN@alias \
     -element EXPERIMENT_REF@accession Pool/Member@accession \
@@ -21,6 +21,8 @@ xtract -input "${METADATAXML}" -head "accession\talias\texperiment\tpool_member\
     -group Bases -deq "\t" -unit Base -tab ";" -sep ":" -element @value,@count \
         -group RUN -unless Bases/Base@value -lbl "NA" \
     -group SRAFiles -deq "\t" -unit SRAFile -if SRAFile@supertype -equals "Original" -tab " " -element @filename \
+        -group RUN -unless SRAFiles -lbl "NA" \
+    -group SRAFiles -deq "\t" -unit SRAFile -if SRAFile@supertype -equals "Original" -tab " " -element @semantic_name \
         -group RUN -unless SRAFiles -lbl "NA" \
     -group RUN_ATTRIBUTES -deq "\t" -unit RUN_ATTRIBUTE -tab ";" -sep ":" -element TAG,VALUE \
     > "${OUTDIR}/all_zf_metadata_run.tsv"

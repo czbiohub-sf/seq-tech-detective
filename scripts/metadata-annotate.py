@@ -95,12 +95,12 @@ if __name__ == "__main__":
         sys.exit(1)
     
     if sys.argv[1] == "combine":
-        run, tech_cols = metadata_annotate(sys.argv[2], keep_cols=['accession', 'experiment', 'pool_member', 'published_date', 'total_spots', 'read:length'])
+        run, tech_cols = metadata_annotate(sys.argv[2], keep_cols=['accession', 'experiment', 'pool_member', 'published_date', 'total_spots', 'read:length', 'semantic_name'])
         #add "run" suffix to tech columns
         run = run.rename({col: f"{col}_run" for col in tech_cols})
         samn, __ = metadata_annotate(sys.argv[3], keep_cols=['accession'])
         samn = samn.rename({col: f"{col}_sample" for col in tech_cols})
-        exp, __ = metadata_annotate(sys.argv[4], keep_cols=['accession', 'study'])
+        exp, __ = metadata_annotate(sys.argv[4], keep_cols=['accession', 'study', 'library_source', 'platform', 'instrument_model'])
         exp = exp.rename({col: f"{col}_experiment" for col in tech_cols})
         study, __ = metadata_annotate(sys.argv[5], keep_cols=['accession'])
         study = study.rename({col: f"{col}_study" for col in tech_cols})
