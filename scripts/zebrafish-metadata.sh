@@ -1,4 +1,4 @@
-
+#!/bin/bash
 
 # metadata
 # assume single experiment (/sra) xml for now
@@ -21,9 +21,9 @@ xtract -input "${METADATAXML}" -head "accession\talias\texperiment\tpool_member\
     -group Bases -deq "\t" -unit Base -tab ";" -sep ":" -element @value,@count \
         -group RUN -unless Bases/Base@value -lbl "NA" \
     -group SRAFiles -deq "\t" -unit SRAFile -if SRAFile@supertype -equals "Original" -tab " " -element @filename \
-        -group RUN -unless SRAFiles -lbl "NA" \
+        -group RUN -unless SRAFiles/SRAFile@supertype -equals "Original" -lbl "NA" \
     -group SRAFiles -deq "\t" -unit SRAFile -if SRAFile@supertype -equals "Original" -tab " " -element @semantic_name \
-        -group RUN -unless SRAFiles -lbl "NA" \
+        -group RUN -unless SRAFiles/SRAFile@supertype -equals "Original" -lbl "NA" \
     -group RUN_ATTRIBUTES -deq "\t" -unit RUN_ATTRIBUTE -tab ";" -sep ":" -element TAG,VALUE \
     > "${OUTDIR}/all_zf_metadata_run.tsv"
 
