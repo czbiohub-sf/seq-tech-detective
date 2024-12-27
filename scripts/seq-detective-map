@@ -1,0 +1,104 @@
+#!/bin/bash
+
+# module for running alignment and feature counting
+
+sum() {
+	paste -sd+ - | sed 's/\+ $//' | bc
+}
+divide() {
+	[ "${2}" -eq 0 ] && echo "NA" || echo "scale=5; (${1} / ${2})" | bc
+}
+divide_2() {
+	[ "${2}" -eq 0 ] && echo "NA" || echo "scale=5; 1 - (${1} / ${2})" | bc
+}
+
+# parse hisat2/featurecounts summary
+parse_mapping() {
+	counts_file="${1}"
+	counts_summary_file="${2}"
+	total_reads="${3}"
+
+	unmapped=$(grep -P "Unassigned_Unmapped" "${counts_summary_file}" | cut -f2)
+	nofeatures=$(grep -P "Unassigned_NoFeatures" "${counts_summary_file}" | cut -f2)
+	assigned=$(grep -P "Assigned" "${counts_summary_file}" | cut -f2)
+	unassigned_lowqual=$(grep -P "Unassigned_MappingQuality" "${counts_summary_file}" | cut -f2)
+	zeroes=$(cut "${counts_file}" -f 7 | grep -Pnc "^0$")
+	# feature count output has 1 command header, 1 table header line, so start at line 3
+	total_features=$(tail -n +3 "${counts_file}" | wc -l)
+	nonzeroes=$((total_features - zeroes))
+	pos_strand_count=$(cut "${counts_file}" -f 5,7 | tr -d ';-' | tr -s '+\t' '1*' | grep '^1' | sum)
+	gene_length_total=$(tail -n +3 "${counts_file}" | cut -f 6,7 | grep -v "\t0$" | cut -f1 | sum)
+
+	# calculate rates
+	mapping_rate=$(divide_2 "${unmapped}" "${total_reads}")
+	nofeature_rate=$(divide "${nofeatures}" "${total_reads}")
+	lowquality_rate=$(divide "${unassigned_lowqual}" "${total_reads}")
+	sparsity=$(divide "${zeroes}" "${total_features}")
+	pos_strand_rate=$(divide "${pos_strand_count}" "${assigned}")
+	avg_length=$(divide "${gene_length_total}" "${nonzeroes}")
+	{
+		# phase 2 mapping information
+		printf "%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t%.3f\n" "${mapping_rate}" "${nofeature_rate}" "${lowquality_rate}" "${sparsity}" "${pos_strand_rate}" "${avg_length}"
+	}
+}
+
+mapping_header() {
+	PRINT_HEADER="${2:-1}"
+	USE_FASTP="${3:-0}"
+	# header line
+	if [ "${PRINT_HEADER}" -eq 1 ]; then
+		printf "mapping_rate\tnofeature_rate\tlowqual_rate\tsparsity\tpos_strand_rate\tavg_gene_size"
+		if [ "${USE_FASTP}" -eq 1 ]; then
+			printf "\tqc_mapping_rate\tqc_nofeature_rate\tqc_lowqual_rate\tqc_sparsity\tqc_pos_strand_rate\tqc_avg_gene_size"
+		fi
+	fi
+}
+
+mapping_main() {
+	set -e
+	FASTQ="${1}"
+	HISAT2_INDEX="${2}"
+	GTF="${3}"
+	OUTFILE="${4:-/dev/stdout}"
+	PRINT_HEADER="${5:-0}"
+	HISAT2_THREADS="${6:-8}"
+	USE_FASTP="${7:-0}"
+	READS="${8:-$(wc -l "${FASTQ}" | cut -f1 -d' ')}"
+
+	HISAT_PARAMS="--no-temp-splicesite --mm --new-summary --summary-file /dev/null -k 1 -p ${HISAT2_THREADS}"
+	#EX_ADP="--adapter_fasta fastp_adapters.fasta"
+	#FASTP_PARAMS="-q 17 -u 15 --length_required 2 ${EX_ADP} --thread ${HISAT2_THREADS}"
+	samfile="${FASTQ}.sam"
+	counts_file="${FASTQ}.counts"
+	counts_summary_file="${counts_file}.summary"
+
+	# run hisat2, and featureCounts
+	hisat2 -x "${HISAT2_INDEX}" -U "${FASTQ}" -S "${samfile}" ${HISAT_PARAMS}
+	# consider -Q <num> quality threshold?
+	featureCounts -a "${GTF}" -T "${HISAT2_THREADS}" -o "${counts_file}" "${samfile}" 1>&2
+
+	# TODO: fastp + post-qc hisat2 path
+	# # possibly run hisat2 again after fastp qc
+	# if [ -n "${USE_FASTP}" ]; then
+	#     fastp -i "${FASTQ}" -o "${FASTQ}.fastp" -j "${FASTQ}.fastp.json" -h "${FASTQ}.fastp.html"
+	#     hisat2 -x "${HISAT2_INDEX}" -U "${FASTQ}.fastp" -S "${samfile}" "${HISAT_PARAMS}"
+	#     featureCounts -a "${GTF}" -T "${HISAT2_THREADS}" -o "${counts_file}" "${samfile}"  1>&2
+	# fi
+
+	mapping_header "${PRINT_HEADER}" "${USE_FASTP}" 1>>"${OUTFILE}"
+	# mapping summary variables
+	parse_mapping "${counts_file}" "${counts_summary_file}" "${READS}" 1>>"${OUTFILE}"
+	# clean up intermediate files
+	rm -f "${samfile}" "${counts_file}" "${counts_summary_file}"
+}
+
+# https://gabrielstaples.com/bash-libraries/
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+	if [ "$#" -lt 3 ]; then
+		echo "Usage: $0 <FASTQ> <HISAT2_INDEX> <GTF> [OUTFILE] [PRINT_HEADER] [HISAT2_THREADS] [USE_FASTP] [READS]" >&2
+	else
+		mapping_main "$@"
+	fi
+else
+	true
+fi
