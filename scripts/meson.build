@@ -41,6 +41,14 @@ fs.copyfile(
     install: true,
     install_dir: 'bin/scripts',
 )
+
+fs.copyfile(
+    'seq-detective-fingerprint',
+    'seq-detective-fingerprint',
+    install: true,
+    install_dir: '.',
+)
+fs.copyfile('seq-detective-map', 'seq-detective-map', install: true, install_dir: '.')
 fs.copyfile('seq-detective', 'seq-detective', install: true, install_dir: '.')
 
 # test(
