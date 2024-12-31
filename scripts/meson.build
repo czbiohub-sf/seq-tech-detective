@@ -48,6 +48,12 @@ fs.copyfile(
     install: true,
     install_dir: '.',
 )
+fs.copyfile(
+    'seq-detective-download',
+    'seq-detective-download',
+    install: true,
+    install_dir: '.',
+)
 fs.copyfile('seq-detective-map', 'seq-detective-map', install: true, install_dir: '.')
 fs.copyfile('seq-detective', 'seq-detective', install: true, install_dir: '.')
 
@@ -61,4 +67,3 @@ fs.copyfile('seq-detective', 'seq-detective', install: true, install_dir: '.')
 # 	'seqspec-convert-exec',
 # 	'safe-exec.sh',
 # 	args: '../resource/specs/inDropv2/spec.yaml',
-# 	protocol: 'exitcode')

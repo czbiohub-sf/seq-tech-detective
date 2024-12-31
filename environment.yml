@@ -11,3 +11,4 @@ dependencies:
   - bioconda::entrez-direct=22.*
   - bioconda::subread=2.0.6
   - bioconda::samtools=1.16.*
+  - bioconda::fastp>=0.24.0
