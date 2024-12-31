@@ -1,0 +1,129 @@
+#!/bin/bash
+#::help
+#: seq-detective-download v0.1.0
+#: module for downloading an SRA accession with a read limit.
+#:    usage: seq-detective-download [-X limit] [-c threads] [-b] <ACCESSION> <types>
+#:
+#:    <types>       Original SRA upload semantic_name(s), e.g. "bam" or "fastq fastq fastq".
+#:    [-X limit]    (2000000) Read limit.  set to <UNIMPLEMENTED> for no limit
+#:    [-c threads]  (# cores) Threads to use (for sam/bam conversion)
+#:    [-b]          (0) Use default SRA Toolkit behavior to omit (some) "technical" reads for pseudobulking.
+#:
+#:    Output: path(s) to FASTQ file(s), space separated
+#::
+
+set -e
+shopt -s nullglob
+
+showhelp() {
+	sed -n "/#::${1}/,/#::/{//!{s/#: //p};}" "${BASH_SOURCE-$0}"
+}
+
+types=""
+bio_only="0"
+LIMIT="2000000"
+cpus="$(nproc)"
+
+while getopts ":t:X:c:bh" opt; do
+	case "${opt}" in
+	t) types="${OPTARG}" ;; # deprecated option syntax
+	X) LIMIT="${OPTARG}" ;;
+	c) cpus="${OPTARG}" ;;
+	b) bio_only=1 ;;
+	\?) showhelp "help" && exit 1 ;;
+	h) showhelp "help" && exit 0 ;;
+	esac
+done
+shift $((OPTIND - 1))
+ACCESSION="${1}"
+types="${2:-types}"
+
+sam2fastq_cpus=$((cpus - 4))
+[[ $sam2fastq_cpus -lt 1 ]] && sam2fastq_cpus=1
+
+fastqdumpwithlimit() {
+	ACC=$1
+	LIMIT=$2
+	fastq-dump --split-3 "${ACC}" -X "${LIMIT}" 1>&2
+	files=$(echo "${ACC}"*)
+	echo ${files}
+}
+
+samdumpwithlimit() {
+	ACC=$1
+	LIMIT=$(($2 * 4))
+	SAMPIPE="${ACC}.$$.sampipe"
+	FASTQ1PIPE="${ACC}_1.$$.fastq.down"
+	FASTQ2PIPE="${ACC}_2.$$.fastq.down"
+	FASTQ0PIPE="${ACC}.$$.fastq.down"
+	sam2fastq_param="-@ ${sam2fastq_cpus} -1 ${FASTQ1PIPE} -2 ${FASTQ2PIPE} -0 ${FASTQ0PIPE} -s ${FASTQ0PIPE}"
+	# retry once if sam-dump fails
+	for i in 1 2; do
+		rm -f "${SAMPIPE}" "${FASTQ1PIPE}" "${FASTQ2PIPE}" "${FASTQ0PIPE}"
+		mkfifo "${SAMPIPE}"
+		mkfifo "${FASTQ1PIPE}" "${FASTQ2PIPE}" "${FASTQ0PIPE}"
+		sam-dump -u "${ACC}" >"${SAMPIPE}" &
+		samdump_pid=$!
+		samtools fastq "${SAMPIPE}" ${sam2fastq_param} -T CB,UB,QX,CR,BC,QT &
+		samtools_pid=$!
+		#echo "sam-dump pid: ${samdump_pid} ${samtools_pid}" 1>&2
+
+		head -n "${LIMIT}" "${FASTQ1PIPE}" >"${ACC}.1.fastq" &
+		head1_pid=$!
+		head -n "${LIMIT}" "${FASTQ2PIPE}" >"${ACC}.2.fastq" &
+		head2_pid=$!
+		head -n "${LIMIT}" "${FASTQ0PIPE}" >"${ACC}.fastq" &
+		head0_pid=$!
+
+		#ps 1>&2
+		# wait -p needs bash >= 5.1
+		# note that we expect sam2fq to fail with an error code because its stream will often be cut short.
+		set +e
+		wait -n "${head2_pid}" "${head0_pid}" "${samdump_pid}"
+		exit_code=$?
+		set -e
+
+		kill "${samdump_pid}" "${samtools_pid}" "${head1_pid}" "${head2_pid}" "${head0_pid}" 2>/dev/null
+		if [ "${exit_code}" -eq 0 ]; then
+			break
+		fi
+		echo "sam-dump failed (${i})" 1>&2
+		sleep 1
+	done
+	rm "${SAMPIPE}" "${FASTQ1PIPE}" "${FASTQ2PIPE}" "${FASTQ0PIPE}"
+	# RETURNED MATES COULD BE LESS THAN LIMIT!
+	# so find out if mates have more reads
+	mate2_lines=$(wc -l "${ACC}.2.fastq" | cut -d' ' -f1)
+	single_lines=$(wc -l "${ACC}.fastq" | cut -d' ' -f1)
+	if [ "${mate2_lines}" -ge "${single_lines}" ]; then
+		rm -f "${ACC}.fastq"
+		echo "${ACC}.1.fastq" "${ACC}.2.fastq"
+	else
+		rm -f "${ACC}.1.fastq" "${ACC}.2.fastq"
+		echo "${ACC}.fastq"
+	fi
+}
+
+if [[ "${bio_only}" -eq 1 ]]; then
+	if [[ "${types}" == *"fastq"* ]]; then
+		# one or more fastq mates, eg SRR24043286
+		fastqdumpwithlimit "${ACCESSION}" "${LIMIT}"
+	elif [[ "${types}" == *"10X Genomics bam file"* ]]; then
+		# 10X Genomics bam file, eg SRR17117610
+		# seq-detective doesn't try to handle 10x genomics bam files with bc in tags
+		samdumpwithlimit "${ACCESSION}" "${LIMIT}"
+	elif [[ "${types}" == *"bam"* ]]; then
+		# bam file, eg ERR1251894
+		samdumpwithlimit "${ACCESSION}" "${LIMIT}"
+	elif [[ "${types}" == *"cram"* ]]; then
+		# cram file, eg ERR2788340
+		samdumpwithlimit "${ACCESSION}" "${LIMIT}"
+	else
+		# unknown file type, try dumping as fastq
+		echo "Unknown file type: ${types}" 1>&2
+		fastqdumpwithlimit "${ACCESSION}" "${LIMIT}"
+	fi
+else
+	echo "single-cell technical dumping is not yet implemented" 1>&2
+	exit 1
+fi

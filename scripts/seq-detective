@@ -1,4 +1,6 @@
 #!/bin/bash
+#::version
+#: seq-detective 0.1.0 (core)
 #::help
 #: seq-detective
 #: interface for download an SRA accession and call all seq-detective phases
@@ -14,7 +16,15 @@
 #:    usage: seq-detective index <assembly name>
 #::download
 #: seq-detective download
-#: download SRA using seq-detective rules (not implemented)
+#: download SRA with a read limit using seq-detective rules (not implemented)
+#:    usage: seq-detective download [-X limit] [-c threads] [-b] <ACCESSION> <types>
+#: 
+#:    <types>       Original SRA upload semantic_name(s), e.g. "bam" or "fastq fastq fastq".
+#:    [-X limit]    (2000000) Read limit.  set to <UNIMPLEMENTED> for no limit
+#:    [-c threads]  (# cores) Threads to use (for sam/bam conversion)
+#:    [-b]          (0) Use default SRA Toolkit behavior to omit (some) "technical" reads for pseudobulking.
+#:
+#:    Output: path(s) to FASTQ file(s), space separated
 #::fingerprint
 #::core
 #: seq-detective core
@@ -128,6 +138,10 @@ case "${COMMAND}" in
 "index")
 	# reference name (common or accession)
 	index "${2}"
+	;;
+"download")
+	shift 1 # shift off subcommand
+	"${SCRIPTDIR}/seq-detective-download" "$@"
 	;;
 "fingerprint")
 	# file, reference prefix, gtf
