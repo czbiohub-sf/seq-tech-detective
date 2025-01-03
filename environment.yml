@@ -3,8 +3,11 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
+  - conda-forge::bc
+  - conda-forge::jq
   - conda-forge::python>=3.10
   - conda-forge::polars==1.16.*
+  - conda-forge::unzip
   - bioconda::seqspec>=0.3.0
   - bioconda::sra-tools=3.1.1
   - bioconda::hisat2=2.2.*
