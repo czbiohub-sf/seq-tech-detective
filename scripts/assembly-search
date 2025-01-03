@@ -74,7 +74,7 @@ echo "${INFO_ON}downloading ${Organism} assembly: ${AssemblyName} (${LastUpdateD
 REF_URL="https://api.ncbi.nlm.nih.gov/datasets/v2alpha/genome/accession/"
 REF_PARAMS="download?include_annotation_type=GENOME_FASTA&include_annotation_type=GENOME_GTF"
 mkdir -p "${PREFIX}"
-curl "${REF_URL}${AssemblyAccession}/${REF_PARAMS}" --output "${outfile}" \
+curl "${REF_URL}${AssemblyAccession}/${REF_PARAMS}" --retry 2 --output "${outfile}" \
   && unzip -u "${outfile}" -d "${outdir}" 1>&2 \
   && rm "${outfile}"
 echo "${outdir}"

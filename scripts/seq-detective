@@ -51,7 +51,6 @@ index() {
 	# download
 	path=$("${SCRIPTDIR}/bin/scripts/assembly-search" "${1}")
 	# find important files
-	ls "${path}"
 	fastaline=$(grep -e "\.fa\|\.fna\|\.fasta" "${path}/md5sum.txt")
 	read -d '' -r _md5 fasta <<<"${fastaline}" || true
 	gtfline=$(grep -e "\.gtf" "${path}/md5sum.txt")
@@ -60,7 +59,7 @@ index() {
 	echo "fasta: ${fasta}"
 	echo "gtf: ${gtf}"
 	# build index
-	set -x
+	echo "building hisat2 index"
 	"${SCRIPTDIR}/bin/scripts/index-build" "${path}/${fasta}" "${path}/${gtf}"
 	return 0
 }
@@ -102,8 +101,38 @@ fingerprint-rough() {
 	} 1>>"${OUTFILE}"
 }
 
+# format a json key-value pair
+# $1: key
+# $2: value
+# $3: pretty print
+json_kv() {
+	KEY="${1}"
+	VALUE="${2}"
+	[[ ${3} -eq 1 ]] && NL="\n" || NL=""
+	[[ ${3} -eq 1 ]] && TAB="\t" || TAB=""
+	{
+		printf "\"%s\": %s%s" "${KEY}" "${VALUE}" "${NL}"
+	}
+}
+
+# 1: file
+# 2: reads
+# 3: readlen
+# 4: arbitrary key-value pairs
+# 5: pretty print
+json_wrap_fastq_core() {
+	[[ ${5} -eq 1 ]] && NL="\n" || NL=""
+	{
+		printf "\"%s\":{${NL}" "${1}"
+		printf "\"reads\":%s,${NL}" "${2}"
+		printf "\"readlen\":%s,${NL}" "${3}"
+		printf "%s" "${4}"
+		printf "}" "${NL}"
+	}
+}
+
 core() {
-	set -ex
+	set -e
 	FASTQ="${1}"
 	HISAT2_INDEX="${2}"
 	GTF="${3}"
@@ -111,23 +140,33 @@ core() {
 	PRINT_HEADER="${5:-0}"
 	HISAT2_THREADS="${6:-8}"
 	USE_FASTP="${7:-0}"
-
-	if [ "${PRINT_HEADER}" -eq 1 ]; then
-		{
-			printf "file\t"
-			printf "reads\treadlen\t"
-			mapping_header "${PRINT_HEADER}" "${USE_FASTP}"
-		} 1>>"${OUTFILE}"
-	fi
+	FORMAT="${8:-json}"
+	PRETTY_PRINT="${9:-0}"
 
 	# get read length and number of reads directly from fastq since we don't run fingerprint
 	readlen=$(awk 'NR==4{print length($0); exit}' "${FASTQ}")
-	reads=$(wc -l "${FASTQ}" | cut -f1 -d' ')
-	{
-		printf "%s\t" "${FASTQ}"
-		printf "%d\t%d\t" "${reads}" "${readlen}"
-		mapping_main "${FASTQ}" "${HISAT2_INDEX}" "${GTF}" "${OUTFILE}" 0 "${HISAT2_THREADS}" "${USE_FASTP}" "${reads}"
-	} 1>>"${OUTFILE}"
+	reads=$(( $(wc -l "${FASTQ}" | cut -f1 -d' ') / 4 ))
+	# ideally throw out all this csv stuff eventually.
+	if [[ "${FORMAT}" == "csv" && "${PRINT_HEADER}" == 1 ]]; then
+		out=$(printf "file\t")
+		out="${out}$(printf "reads\treadlen\t")"
+		out="${out}$(mapping_header "${PRINT_HEADER}" "${USE_FASTP}")"
+	fi
+
+	if [ "${FORMAT}" == "csv" ]; then
+		out="${out}$(printf "%s\t" "${FASTQ}")"
+		out="${out}$(printf "%d\t%d\t" "${reads}" "${readlen}")"
+		out="${out}$(mapping_main "${FASTQ}" "${HISAT2_INDEX}" "${GTF}" "${OUTFILE}" 0 "${HISAT2_THREADS}" "${USE_FASTP}" "${reads}")"
+	elif [ "${FORMAT}" == "json" ]; then
+		out="${out}$(mapping_main "${FASTQ}" "${HISAT2_INDEX}" "${GTF}" "${OUTFILE}" 0 "${HISAT2_THREADS}" "${USE_FASTP}" "${reads}")"
+		out="$(json_wrap_fastq_core "${FASTQ}" "${reads}" "${readlen}" "${out}")"
+	fi
+
+	if [ "${PRETTY_PRINT}" -eq 1 ]; then
+		echo "{${out}}" | jq '.' 1>>"${OUTFILE}"
+	else
+		echo "${out}" 1>>"${OUTFILE}"
+	fi
 }
 
 # TODO: need option parsing! (--json, --header)

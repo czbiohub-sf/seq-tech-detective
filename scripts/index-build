@@ -11,10 +11,10 @@ ERR_OFF=$(tput sgr0)
 FASTA="${1}"
 GTF="${2}"
 NUMTHREADS=8
-NOANNOTATIONS=0
+NOANNOTATIONS=1
 NAME="${FASTA##*/}"
-NAME="hisat2-index/${NAME%.*}"
-mkdir -p hisat2-index
+NAME="ref/hisat2-index/${NAME%.*}"
+mkdir -p ref/hisat2-index
 
 HISAT_PARAMS="--quiet -p ${NUMTHREADS}"
 if [[ ! -x "$(command -v hisat2-build)" ]]; then
@@ -22,7 +22,7 @@ if [[ ! -x "$(command -v hisat2-build)" ]]; then
   exit 1
 fi
 
-if [[ -z ${NOANNOTATIONS} ]]; then
+if [[ ${NOANNOTATIONS} -eq 1 ]]; then
     hisat2-build ${HISAT_PARAMS} "${FASTA}" "${NAME}"
 else
     hisat2_extract_splice_sites.py "${GTF}" > genome.ss
