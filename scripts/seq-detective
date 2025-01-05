@@ -104,30 +104,22 @@ fingerprint-rough() {
 # format a json key-value pair
 # $1: key
 # $2: value
-# $3: pretty print
 json_kv() {
-	KEY="${1}"
-	VALUE="${2}"
-	[[ ${3} -eq 1 ]] && NL="\n" || NL=""
-	[[ ${3} -eq 1 ]] && TAB="\t" || TAB=""
 	{
-		printf "\"%s\": %s%s" "${KEY}" "${VALUE}" "${NL}"
+		printf "\"%s\": %s" "${1}" "${2}"
 	}
 }
 
-# 1: file
-# 2: reads
-# 3: readlen
-# 4: arbitrary key-value pairs
-# 5: pretty print
+# 1: reads
+# 2: readlen
+# 3: arbitrary key-value pairs
 json_wrap_fastq_core() {
-	[[ ${5} -eq 1 ]] && NL="\n" || NL=""
 	{
-		printf "\"%s\":{${NL}" "${1}"
-		printf "\"reads\":%s,${NL}" "${2}"
-		printf "\"readlen\":%s,${NL}" "${3}"
-		printf "%s" "${4}"
-		printf "}" "${NL}"
+		printf "{"
+		printf "\"reads\":%s," "${1}"
+		printf "\"readlen\":%s," "${2}"
+		printf "%s" "${3}"
+		printf "}"
 	}
 }
 
@@ -138,7 +130,7 @@ core() {
 	GTF="${3}"
 	OUTFILE="${4:-/dev/stdout}"
 	PRINT_HEADER="${5:-0}"
-	HISAT2_THREADS="${6:-8}"
+	THREADS="${6:-8}"
 	USE_FASTP="${7:-0}"
 	FORMAT="${8:-json}"
 	PRETTY_PRINT="${9:-0}"
@@ -146,30 +138,20 @@ core() {
 	# get read length and number of reads directly from fastq since we don't run fingerprint
 	readlen=$(awk 'NR==4{print length($0); exit}' "${FASTQ}")
 	reads=$(( $(wc -l "${FASTQ}" | cut -f1 -d' ') / 4 ))
-	# ideally throw out all this csv stuff eventually.
-	if [[ "${FORMAT}" == "csv" && "${PRINT_HEADER}" == 1 ]]; then
-		out=$(printf "file\t")
-		out="${out}$(printf "reads\treadlen\t")"
-		out="${out}$(mapping_header "${PRINT_HEADER}" "${USE_FASTP}")"
-	fi
 
-	if [ "${FORMAT}" == "csv" ]; then
-		out="${out}$(printf "%s\t" "${FASTQ}")"
-		out="${out}$(printf "%d\t%d\t" "${reads}" "${readlen}")"
-		out="${out}$(mapping_main "${FASTQ}" "${HISAT2_INDEX}" "${GTF}" "${OUTFILE}" 0 "${HISAT2_THREADS}" "${USE_FASTP}" "${reads}")"
-	elif [ "${FORMAT}" == "json" ]; then
-		out="${out}$(mapping_main "${FASTQ}" "${HISAT2_INDEX}" "${GTF}" "${OUTFILE}" 0 "${HISAT2_THREADS}" "${USE_FASTP}" "${reads}")"
-		out="$(json_wrap_fastq_core "${FASTQ}" "${reads}" "${readlen}" "${out}")"
+	if [ "${FORMAT}" == "json" ]; then
+		out="${out}$(mapping_main "${FASTQ}" "${HISAT2_INDEX}" "${GTF}" "${OUTFILE}" "${THREADS}" "${USE_FASTP}" "${reads}")"
+		out="$(json_wrap_fastq_core "${reads}" "${readlen}" "${out}")"
 	fi
 
 	if [ "${PRETTY_PRINT}" -eq 1 ]; then
-		echo "{${out}}" | jq '.' 1>>"${OUTFILE}"
+		echo "${out}" | jq '.' 1>>"${OUTFILE}"
 	else
 		echo "${out}" 1>>"${OUTFILE}"
 	fi
 }
 
-# TODO: need option parsing! (--json, --header)
+# TODO: need option parsing! (--json)
 # (if any -h, command is "help" and $COMMAND is the next argument)
 
 # switch based on COMMAND
@@ -180,7 +162,7 @@ case "${COMMAND}" in
 	;;
 "download")
 	shift 1 # shift off subcommand
-	"${SCRIPTDIR}/seq-detective-download" "$@"
+	"${SCRIPTDIR}/seq-detective-download" $@
 	;;
 "fingerprint")
 	# file, reference prefix, gtf
