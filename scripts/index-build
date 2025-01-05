@@ -18,15 +18,15 @@ mkdir -p ref/hisat2-index
 
 HISAT_PARAMS="--quiet -p ${NUMTHREADS}"
 if [[ ! -x "$(command -v hisat2-build)" ]]; then
-  echo "${ERR_ON}hisat2-build not found: install hisat2${ERR_OFF}" >&2
-  exit 1
+	echo "${ERR_ON}hisat2-build not found: install hisat2${ERR_OFF}" >&2
+	exit 1
 fi
 
 if [[ ${NOANNOTATIONS} -eq 1 ]]; then
-    hisat2-build ${HISAT_PARAMS} "${FASTA}" "${NAME}"
+	hisat2-build ${HISAT_PARAMS} "${FASTA}" "${NAME}"
 else
-    hisat2_extract_splice_sites.py "${GTF}" > genome.ss
-    hisat2_extract_exons.py "${GTF}" > genome.exon
-    hisat2-build ${HISAT_PARAMS} --exon genome.exon --ss genome.ss "${FASTA}" "${NAME}"
+	hisat2_extract_splice_sites.py "${GTF}" >genome.ss
+	hisat2_extract_exons.py "${GTF}" >genome.exon
+	hisat2-build ${HISAT_PARAMS} --exon genome.exon --ss genome.ss "${FASTA}" "${NAME}"
 fi
 echo "${NAME}"
