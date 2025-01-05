@@ -11,7 +11,7 @@ ERR_OFF=$(tput sgr0)
 FASTA="${1}"
 GTF="${2}"
 NUMTHREADS=8
-NOANNOTATIONS=1
+NOANNOTATIONS=0
 NAME="${FASTA##*/}"
 NAME="ref/hisat2-index/${NAME%.*}"
 mkdir -p ref/hisat2-index

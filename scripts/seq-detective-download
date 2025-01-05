@@ -45,7 +45,7 @@ fastqdumpwithlimit() {
 	ACC=$1
 	LIMIT=$2
 	fastq-dump --split-3 "${ACC}" -X "${LIMIT}" 1>&2
-	files=$(echo "${ACC}"*)
+	files=$(echo "${ACC}"*.fastq)
 	echo ${files}
 }
 

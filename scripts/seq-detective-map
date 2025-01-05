@@ -73,77 +73,67 @@ mapping_to_json() {
 	}
 }
 
-# mapping info to csv serialization (deprecated?)
-mapping_to_csv() {
-	{
-		printf "%.5f,%.5f,%.5f,%.5f,%.5f,%.3f" "${1}" "${2}" "${3}" "${4}" "${5}" "${6}"
-	}
-}
-
-mapping_header() {
-	PRINT_HEADER="${2:-1}"
-	USE_FASTP="${3:-0}"
-	# header line
-	if [ "${PRINT_HEADER}" -eq 1 ]; then
-		printf "mapping_rate\tnofeature_rate\tlowqual_rate\tsparsity\tpos_strand_rate\tavg_gene_size"
-		if [ "${USE_FASTP}" -eq 1 ]; then
-			printf "\tqc_mapping_rate\tqc_nofeature_rate\tqc_lowqual_rate\tqc_sparsity\tqc_pos_strand_rate\tqc_avg_gene_size"
-		fi
-	fi
-}
-
 mapping_main() {
 	set -e
 	FASTQ="${1}"
 	HISAT2_INDEX="${2}"
 	GTF="${3}"
 	OUTFILE="${4:-/dev/stdout}"
-	PRINT_HEADER="${5:-0}"
-	HISAT2_THREADS="${6:-8}"
-	USE_FASTP="${7:-0}"
-	READS="${8:-$(( $(wc -l "${FASTQ}" | cut -f1 -d' ') / 4 ))}"
+	THREADS="${5:-8}"
+	QC_STATS="${6:-0}"
+	READS="${7:-}"
 
-	# consider switching to always running fastp, then hisat on both versions?
-	HISAT_PARAMS="--no-temp-splicesite --mm --new-summary --summary-file /dev/null -k 1 -p ${HISAT2_THREADS}"
+	HISAT_PARAMS="--no-temp-splicesite --mm --new-summary --summary-file /dev/null -k 1 -p ${THREADS}"
 	FASTP_PARAMS="-x -q 17 -u 15 -n 50 --length_required 2 -p"
-	FASTP_EXTRACT="{gc_content:{before:.summary.before_filtering.gc_content,after:.summary.after_filtering.gc_content},
+	FASTP_EXTRACT="{summary:.summary|pick(.before_filtering,.after_filtering|.total_reads,.total_bases,.read1_mean_length,.gc_content),
 	filtering_result:.filtering_result,
 	adapter_cutting:.adapter_cutting,
 	polyx_trimming:.polyx_trimming,
 	duplication:.duplication,
 	overrepresented:{before:[.read1_before_filtering.overrepresented_sequences|to_entries|sort_by(.value)|reverse|limit(5;.[])]|from_entries,
 	after:[.read1_after_filtering.overrepresented_sequences|to_entries|sort_by(.value)|reverse|limit(5;.[])]|from_entries}}"
-
 	#EX_ADP="--adapter_fasta fastp_adapters.fasta"
+
+	# run fastp first for read stats and warm files
+	if [ -n "${QC_STATS}" ]; then
+		QC_FASTQ="${FASTQ}.fastp.fastq"
+	else
+		QC_FASTQ="/dev/null"
+	fi
+	fastp -w "${THREADS}" -i "${FASTQ}" -o "${QC_FASTQ}" -j "${FASTQ}.fastp.json" -h /dev/null ${FASTP_PARAMS}
+	fastp_info=$(jq -c "${FASTP_EXTRACT}" "${FASTQ}.fastp.json")
+	rm "${FASTQ}.fastp.json"
+
+	READS="${READS:-$(<<<"${fastp_info}" jq ".filtering_result.passed_filter_reads")}"
 	samfile="${FASTQ}.sam"
 	counts_file="${FASTQ}.counts"
 	counts_summary_file="${counts_file}.summary"
-
-	# unused, for csv header only...
-	#mapping_header "${PRINT_HEADER}" "${USE_FASTP}" 1>>"${OUTFILE}"
-
-	# run hisat2, and featureCounts
-	hisat2 -x "${HISAT2_INDEX}" -U "${FASTQ}" -S "${samfile}" ${HISAT_PARAMS}	
-	# consider -Q <num> quality threshold?
-	featureCounts -a "${GTF}" -T "${HISAT2_THREADS}" -o "${counts_file}" "${samfile}" 1>&2
-	# parse output
-	out="$(json_kv "raw" $(parse_mapping "${counts_file}" "${counts_summary_file}" "${READS}"))"
-
-	# possibly run hisat2 again after fastp qc
-	if [ -n "${USE_FASTP}" ]; then
-	    fastp -i "${FASTQ}" -o "${FASTQ}.fastp.fastq" -j "${FASTQ}.fastp.json" -h /dev/null ${FASTP_PARAMS}
-		fastp_info=$(jq -c "${FASTP_EXTRACT}" "${FASTQ}.fastp.json")
+	samfile_qc="${FASTQ}.qc.sam"
+	counts_file_qc="${FASTQ}.qc.counts"
+	counts_summary_file_qc="${counts_file_qc}.summary"
+	# run pre-qc hisat2
+	hisat2 -x "${HISAT2_INDEX}" -U "${FASTQ}" -S "${samfile}" ${HISAT_PARAMS}
+	# possibly run post-qc hisat2
+	if [ -n "${QC_STATS}" ]; then
 		READS_AFTER=$(<<<"${fastp_info}" jq ".filtering_result.passed_filter_reads")
-	    hisat2 -x "${HISAT2_INDEX}" -U "${FASTQ}.fastp.fastq" -S "${samfile}" ${HISAT_PARAMS}
-
-	    featureCounts -a "${GTF}" -T "${HISAT2_THREADS}" -o "${counts_file}" "${samfile}"  1>&2
-		out="${out},$(json_kv "qc" $(parse_mapping "${counts_file}" "${counts_summary_file}" "${READS_AFTER}"))"
-		out="${out},$(json_kv "fastp" "${fastp_info}")"
-		rm -f "${FASTQ}.fastp.fastq" "${FASTQ}.fastp.json"
+	    hisat2 -x "${HISAT2_INDEX}" -U "${QC_FASTQ}" -S "${samfile_qc}" ${HISAT_PARAMS}
+		rm -f "${QC_FASTQ}"
 	fi
 
-	# clean up intermediate files
+	# pre-qc featurecounts
+	# consider -Q <num> quality threshold?
+	featureCounts -a "${GTF}" -T "${THREADS}" -o "${counts_file}" "${samfile}" 1>&2
+	# parse output
+	out="$(json_kv "raw" $(parse_mapping "${counts_file}" "${counts_summary_file}" "${READS}"))"
 	rm -f "${samfile}" "${counts_file}" "${counts_summary_file}"
+
+	if [ -n "${QC_STATS}" ]; then
+		# post-qc featurecounts
+	    featureCounts -a "${GTF}" -T "${THREADS}" -o "${counts_file_qc}" "${samfile_qc}"  1>&2
+		out="${out},$(json_kv "qc" $(parse_mapping "${counts_file_qc}" "${counts_summary_file_qc}" "${READS_AFTER}"))"
+		rm -f "${samfile_qc}" "${counts_file_qc}" "${counts_summary_file_qc}"
+	fi
+	out="${out},$(json_kv "fastp" "${fastp_info}")"
 
 	out=$(json_kv "mapping" "{${out}}")
 	echo "${out}" 1>>"${OUTFILE}"
@@ -152,7 +142,7 @@ mapping_main() {
 # https://gabrielstaples.com/bash-libraries/
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
 	if [ "$#" -lt 3 ]; then
-		echo "Usage: $0 <FASTQ> <HISAT2_INDEX> <GTF> [OUTFILE] [PRINT_HEADER] [HISAT2_THREADS] [USE_FASTP] [READS]" >&2
+		echo "Usage: $0 <FASTQ> <HISAT2_INDEX> <GTF> [OUTFILE] [THREADS] [QC_STATS] [READS]" 0&2
 	else
 		mapping_main "$@"
 	fi
