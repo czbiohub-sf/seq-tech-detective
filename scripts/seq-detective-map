@@ -65,7 +65,7 @@ mapping_to_json() {
 		printf "{"
 		printf "\"mapping_rate\":%.5f," "${1}"
 		printf "\"nofeature_rate\":%.5f," "${2}"
-		printf "\"lowqual_rate\":%.5f,"  "${3}"
+		printf "\"lowqual_rate\":%.5f," "${3}"
 		printf "\"sparsity\":%.5f," "${4}"
 		printf "\"pos_strand_rate\":%.5f," "${5}"
 		printf "\"avg_gene_size\":%.3f" "${6}"
@@ -116,7 +116,7 @@ mapping_main() {
 	# possibly run post-qc hisat2
 	if [ -n "${QC_STATS}" ]; then
 		READS_AFTER=$(<<<"${fastp_info}" jq ".filtering_result.passed_filter_reads")
-	    hisat2 -x "${HISAT2_INDEX}" -U "${QC_FASTQ}" -S "${samfile_qc}" ${HISAT_PARAMS}
+		hisat2 -x "${HISAT2_INDEX}" -U "${QC_FASTQ}" -S "${samfile_qc}" ${HISAT_PARAMS}
 		rm -f "${QC_FASTQ}"
 	fi
 
@@ -129,7 +129,7 @@ mapping_main() {
 
 	if [ -n "${QC_STATS}" ]; then
 		# post-qc featurecounts
-	    featureCounts -a "${GTF}" -T "${THREADS}" -o "${counts_file_qc}" "${samfile_qc}"  1>&2
+		featureCounts -a "${GTF}" -T "${THREADS}" -o "${counts_file_qc}" "${samfile_qc}" 1>&2
 		out="${out},$(json_kv "qc" $(parse_mapping "${counts_file_qc}" "${counts_summary_file_qc}" "${READS_AFTER}"))"
 		rm -f "${samfile_qc}" "${counts_file_qc}" "${counts_summary_file_qc}"
 	fi
@@ -142,7 +142,7 @@ mapping_main() {
 # https://gabrielstaples.com/bash-libraries/
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
 	if [ "$#" -lt 3 ]; then
-		echo "Usage: $0 <FASTQ> <HISAT2_INDEX> <GTF> [OUTFILE] [THREADS] [QC_STATS] [READS]" 0&2
+		echo "Usage: $0 <FASTQ> <HISAT2_INDEX> <GTF> [OUTFILE] [THREADS] [QC_STATS] [READS]" 1>&2
 	else
 		mapping_main "$@"
 	fi
