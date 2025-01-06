@@ -60,3 +60,5 @@ xtract -input "${METADATAXML}" -self -head "accession\talias\ttitle\ttype\ttype_
 	-group STUDY -unless STUDY_LINKS/XREF_LINK -lbl "NA" \
 	-group STUDY_ATTRIBUTES -deq "\t" -unit STUDY_ATTRIBUTE -tab ";" -sep ":" -element TAG,VALUE \
 	>"${OUTDIR}/all_zf_metadata_study.tsv"
+
+#./scripts/metadata-annotate.py combine ${OUTDIR}/all_zf_metadata_run.tsv ${OUTDIR}/all_zf_metadata_sample.tsv ${OUTDIR}/all_zf_metadata_experiment.tsv ${OUTDIR}/all_zf_metadata_study.tsv

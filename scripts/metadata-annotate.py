@@ -117,7 +117,7 @@ if __name__ == "__main__":
         tech_cols_no_generic = [col for col in tech_cols if col != 'generic-scrnaseq']
         tech_cols_yes_generic = tech_cols_no_generic + ['generic-scrnaseq-only']
         # create generic-scrnaseq-only column if generic-scrnaseq > 0 and all other tech columns are 0
-        df = df.with_columns(
+        df.with_columns(
             (pl.when(
                 (pl.col('generic-scrnaseq') > 0) & 
                 (pl.sum_horizontal(tech_cols_no_generic) == 0)
@@ -130,7 +130,11 @@ if __name__ == "__main__":
                 .then(pl.lit(tech))
                 for tech in tech_cols_yes_generic
             )
-        ).write_csv("all_zf_metadata_combined.csv")
+        ).write_csv("all_metadata_combined.csv")
+        print("all_metadata_combined.csv")
+        # grab just accession and semantic_name columns
+        df.select(['accession', 'semantic_name']).write_csv("accession_data_for_scan.csv", include_header=False)
+        print("accession_data_for_scan.csv")
     else:
         for file in sys.argv[1:]:
             metadata_annotate(file)
