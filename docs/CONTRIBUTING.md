@@ -22,7 +22,7 @@ including documentation and maintainer information, may be rough.
 - [Shell script style guide](#shell-script-style-guide)
 
 ## Code of Conduct
-
+TODO
 
 
 ## I Have a Question
@@ -124,10 +124,7 @@ Unsure where to begin contributing to Seq-Detective? You can start by looking th
 
 <!-- omit in toc -->
 #### Local development
-
-TODO: git development loop
 briefly:
-
 - clone the repository
 - create a branch
 - make changes (remember to add tests, if adding a new feature or changing behavior)
@@ -135,6 +132,23 @@ briefly:
 - commit your changes, trying to follow the [commit message guidelines](#commit-guidelines)
 - push your changes
 - open a pull request
+```bash
+git clone git@github.com:czbiohub-sf/seq-tech-detective.git
+cd seq-tech-detective
+# for every change branch:
+git switch main
+git pull
+git checkout -b <branch-name>
+# make and test changes (remember to add tests, if adding a new feature or changing behavior)
+# (for C, meson changes:)
+make fmt
+make lint
+# commit changes, following commit message guidelines
+# (git commit --amend or git rebase -i to correct minor mistakes per commit before pushing)
+# (if main has had possibly conflicting history since branch, resolve conflicts with git rebase origin main)
+git push origin <branch-name>
+# then, open a pull request!
+```
 
 ### Pull Requests
 
