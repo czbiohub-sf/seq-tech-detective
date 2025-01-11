@@ -2,7 +2,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <linux/limits.h>
+#include <limits.h>
 #include <search.h>
 #include <stdint.h>
 #include <stdio.h>
