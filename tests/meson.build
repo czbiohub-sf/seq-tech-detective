@@ -9,7 +9,7 @@ if get_option('test').enabled()
         'seqtoint-tests',
         ['seqtoint-test.c', lib_src],
         include_directories: inc,
-        dependencies: [rexo],
+        dependencies: [rexo, deps],
     )
     test('seqtoint tests', seqtoint_tests_exe)
 
@@ -17,7 +17,7 @@ if get_option('test').enabled()
         'tablebuilder-tests',
         ['table-builder-test.c', lib_src],
         include_directories: inc,
-        dependencies: [rexo],
+        dependencies: [rexo, deps],
     )
     test('table_builder tests', table_tests_exe)
 
@@ -25,7 +25,7 @@ if get_option('test').enabled()
         'detection-tests',
         ['detection-test.c', lib_src],
         include_directories: inc,
-        dependencies: [rexo],
+        dependencies: [rexo, deps],
     )
     test('synthetic detection tests', detection_tests_exe)
 endif
