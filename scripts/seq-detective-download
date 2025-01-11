@@ -26,7 +26,7 @@ cpus="$(nproc)"
 
 while getopts ":t:X:c:bh" opt; do
 	case "${opt}" in
-	t) types="${OPTARG}" ;; # deprecated option syntax
+	t) types="${OPTARG}" ;; # deprecated original types option syntax
 	X) LIMIT="${OPTARG}" ;;
 	c) cpus="${OPTARG}" ;;
 	b) bio_only=1 ;;
@@ -38,7 +38,7 @@ shift $((OPTIND - 1))
 ACCESSION="${1}"
 types="${2:-types}"
 
-sam2fastq_cpus=$((cpus - 4))
+sam2fastq_cpus=$(( cpus - 4 ))
 [[ $sam2fastq_cpus -lt 1 ]] && sam2fastq_cpus=1
 
 fastqdumpwithlimit() {
@@ -53,53 +53,63 @@ samdumpwithlimit() {
 	ACC=$1
 	LIMIT=$(($2 * 4))
 	SAMPIPE="${ACC}.$$.sampipe"
-	FASTQ1PIPE="${ACC}_1.$$.fastq.down"
-	FASTQ2PIPE="${ACC}_2.$$.fastq.down"
-	FASTQ0PIPE="${ACC}.$$.fastq.down"
-	sam2fastq_param="-@ ${sam2fastq_cpus} -1 ${FASTQ1PIPE} -2 ${FASTQ2PIPE} -0 ${FASTQ0PIPE} -s ${FASTQ0PIPE}"
-	# retry once if sam-dump fails
-	for i in 1 2; do
-		rm -f "${SAMPIPE}" "${FASTQ1PIPE}" "${FASTQ2PIPE}" "${FASTQ0PIPE}"
-		mkfifo "${SAMPIPE}"
-		mkfifo "${FASTQ1PIPE}" "${FASTQ2PIPE}" "${FASTQ0PIPE}"
-		sam-dump -u "${ACC}" >"${SAMPIPE}" &
-		samdump_pid=$!
-		samtools fastq "${SAMPIPE}" ${sam2fastq_param} -T CB,UB,QX,CR,BC,QT &
-		samtools_pid=$!
-		#echo "sam-dump pid: ${samdump_pid} ${samtools_pid}" 1>&2
+	FASTQ1TEMP="${ACC}_1.$$.fastq.down"
+	FASTQ2TEMP="${ACC}_2.$$.fastq.down"
+	FASTQ0TEMP="${ACC}.$$.fastq.down"
 
-		head -n "${LIMIT}" "${FASTQ1PIPE}" >"${ACC}.1.fastq" &
-		head1_pid=$!
-		head -n "${LIMIT}" "${FASTQ2PIPE}" >"${ACC}.2.fastq" &
-		head2_pid=$!
-		head -n "${LIMIT}" "${FASTQ0PIPE}" >"${ACC}.fastq" &
-		head0_pid=$!
+	# what do accessions put in 0?  having them write to same stream messes up SRR24239717
+	sam2fastq_param="-@ ${sam2fastq_cpus} -1 ${FASTQ1TEMP} -2 ${FASTQ2TEMP} -0 /dev/null -s ${FASTQ0TEMP}"
+	mate1_lines=0
+	mate2_lines=0
+	single_lines=0
 
-		#ps 1>&2
-		# wait -p needs bash >= 5.1
-		# note that we expect sam2fq to fail with an error code because its stream will often be cut short.
-		set +e
-		wait -n "${head2_pid}" "${head0_pid}" "${samdump_pid}"
-		exit_code=$?
-		set -e
+	rm -f "${SAMPIPE}" "${FASTQ1TEMP}" "${FASTQ2TEMP}" "${FASTQ0TEMP}"
+	mkfifo "${SAMPIPE}"
+	sam-dump -u "${ACC}" >"${SAMPIPE}" &
+	samdump_pid=$!
+	samtools fastq "${SAMPIPE}" ${sam2fastq_param} -T CB,UB,QX,CR,BC,QT &
+	samtools_pid=$!
+	#echo "sam-dump pid: ${samdump_pid} ${samtools_pid}" 1>&2
 
-		kill "${samdump_pid}" "${samtools_pid}" "${head1_pid}" "${head2_pid}" "${head0_pid}" 2>/dev/null
-		if [ "${exit_code}" -eq 0 ]; then
+	exit_code=0
+	while true; do
+		[[ -e "${FASTQ0TEMP}" ]] && single_lines=$(wc -l "${FASTQ0TEMP}" | cut -d' ' -f1)
+		
+		if [[ "${single_lines}" -ge "${LIMIT}" ]]; then
+			kill "${samdump_pid}" "${samtools_pid}" 2>/dev/null || true
+			head -n "${LIMIT}" "${FASTQ0TEMP}" >"${ACC}.fastq"
 			break
 		fi
-		echo "sam-dump failed (${i})" 1>&2
+		[[ -e "${FASTQ1TEMP}" ]] && mate1_lines=$(wc -l "${FASTQ1TEMP}" | cut -d' ' -f1)
+		[[ -e "${FASTQ2TEMP}" ]] && mate2_lines=$(wc -l "${FASTQ2TEMP}" | cut -d' ' -f1)
+		if [[ ( "${mate1_lines}" -ge "${LIMIT}" ) && ( "${mate2_lines}" -ge "${LIMIT}") ]]; then
+			kill "${samdump_pid}" "${samtools_pid}" 2>/dev/null || true
+			head -n "${LIMIT}" "${FASTQ1TEMP}" >"${ACC}_1.fastq" & head1pid=$!
+			head -n "${LIMIT}" "${FASTQ2TEMP}" >"${ACC}_2.fastq" & head2pid=$!
+			wait "${head1pid}" "${head2pid}"
+			break
+		fi
+		if [[ ! -e "/proc/${samdump_pid}" ]]; then
+			kill "${samtools_pid}" 2>/dev/null || true
+			# could still have valid result under the limit to return
+			head -n "${LIMIT}" "${FASTQ0TEMP}" >"${ACC}.fastq" & head0pid=$!
+			head -n "${LIMIT}" "${FASTQ1TEMP}" >"${ACC}_1.fastq" & head1pid=$!
+			head -n "${LIMIT}" "${FASTQ2TEMP}" >"${ACC}_2.fastq" & head2pid=$!
+			wait "${head0pid}" "${head1pid}" "${head2pid}"
+			break
+		fi
 		sleep 1
 	done
-	rm "${SAMPIPE}" "${FASTQ1PIPE}" "${FASTQ2PIPE}" "${FASTQ0PIPE}"
+	kill "${samdump_pid}" "${samtools_pid}" 2>/dev/null || true
+
+	rm "${SAMPIPE}" "${FASTQ1TEMP}" "${FASTQ2TEMP}" "${FASTQ0TEMP}"
 	# RETURNED MATES COULD BE LESS THAN LIMIT!
 	# so find out if mates have more reads
-	mate2_lines=$(wc -l "${ACC}.2.fastq" | cut -d' ' -f1)
-	single_lines=$(wc -l "${ACC}.fastq" | cut -d' ' -f1)
 	if [ "${mate2_lines}" -ge "${single_lines}" ]; then
 		rm -f "${ACC}.fastq"
-		echo "${ACC}.1.fastq" "${ACC}.2.fastq"
+		echo "${ACC}_1.fastq" "${ACC}_2.fastq"
 	else
-		rm -f "${ACC}.1.fastq" "${ACC}.2.fastq"
+		rm -f "${ACC}_1.fastq" "${ACC}_2.fastq"
 		echo "${ACC}.fastq"
 	fi
 }
