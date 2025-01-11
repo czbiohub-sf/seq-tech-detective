@@ -110,15 +110,17 @@ json_kv() {
 	}
 }
 
-# 1: reads
-# 2: readlen
-# 3: arbitrary key-value pairs
+# 1: filename
+# 2: reads
+# 3: readlen
+# 4: arbitrary key-value pairs
 json_wrap_fastq_core() {
 	{
 		printf "{"
-		printf "\"reads\":%s," "${1}"
-		printf "\"readlen\":%s," "${2}"
-		printf "%s" "${3}"
+		printf "\"name\":\"%s\"," "${1}"
+		printf "\"reads\":%s," "${2}"
+		printf "\"readlen\":%s," "${3}"
+		printf "%s" "${4}"
 		printf "}"
 	}
 }
@@ -130,7 +132,7 @@ core() {
 	GTF="${3}"
 	OUTFILE="${4:-/dev/stdout}"
 	PRINT_HEADER="${5:-0}"
-	THREADS="${6:-8}"
+	THREADS="${6:-4}"
 	USE_FASTP="${7:-0}"
 	FORMAT="${8:-json}"
 	PRETTY_PRINT="${9:-0}"
@@ -141,7 +143,7 @@ core() {
 
 	if [ "${FORMAT}" == "json" ]; then
 		out="${out}$(mapping_main "${FASTQ}" "${HISAT2_INDEX}" "${GTF}" "${OUTFILE}" "${THREADS}" "${USE_FASTP}" "${reads}")"
-		out="$(json_wrap_fastq_core "${reads}" "${readlen}" "${out}")"
+		out="$(json_wrap_fastq_core "${FASTQ}" "${reads}" "${readlen}" "${out}")"
 	fi
 
 	if [ "${PRETTY_PRINT}" -eq 1 ]; then
