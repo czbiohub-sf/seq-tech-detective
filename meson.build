@@ -11,7 +11,7 @@ project(
 )
 exename = 'seq-detective-fp'
 
-proj_args = ['-g3', '-fopenmp']
+proj_args = ['-g3']
 if get_option('test').enabled()
     proj_args += [
         '-Wno-stringop-overread',  # intentional
@@ -21,7 +21,6 @@ if get_option('test').enabled()
     ]
 endif
 add_project_arguments(proj_args, language: ['c'])
-add_project_link_arguments(['-fopenmp'], language: ['c', 'cpp'])
 
 # dependencies: openmp
 openmp_dep = dependency('openmp')
