@@ -1,14 +1,14 @@
 #!/bin/bash
 
 #SBATCH --job-name=seq-detective-scan
-#SBATCH --array=0-1
+#SBATCH --array=0-209
 #SBATCH --time=48:00:00
-#SBATCH --partition=cpu
+#SBATCH --partition=preempted
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=8G
-#SBATCH --output=test.out/scan-%A-%a.out
-#SBATCH --error=test.out/scan-%A-%a.err
+#SBATCH --output=slurm.out/scan-%A-%a.out
+#SBATCH --error=slurm.out/scan-%A-%a.err
 
 module load mamba
 mamba activate seq-detective
@@ -23,7 +23,7 @@ readarray -t ACCESSIONS <"${ACCESSION_FILE}"
 TASKSIZE=$(((${#ACCESSIONS[@]} + SLURM_ARRAY_TASK_COUNT - 1) / SLURM_ARRAY_TASK_COUNT))
 START=$((SLURM_ARRAY_TASK_ID * TASKSIZE))
 END=$((START + TASKSIZE))
-TASK_OUTPUT="${PWD}/test.out/scan-${SLURM_ARRAY_JOB_ID}-${SLURM_ARRAY_TASK_ID}.json"
+TASK_OUTPUT="${PWD}/slurm.out/scan-${SLURM_ARRAY_JOB_ID}-${SLURM_ARRAY_TASK_ID}.json"
 
 workdir="$(mktemp -d)"
 cd "${workdir}" || exit 1
