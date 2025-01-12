@@ -10,6 +10,7 @@ project(
     ],
 )
 exename = 'seq-detective-fp'
+compiler = meson.get_compiler('c')
 
 proj_args = ['-g3']
 if get_option('test').enabled()
@@ -35,6 +36,9 @@ conf.set_quoted('PACKAGE_NAME', meson.project_name())
 conf.set_quoted('VERSION', meson.project_version())
 conf.set_quoted('PKGDATADIR', join_paths(get_option('prefix'), pkgdatadir))
 conf.set10('LOG_USE_COLOR', get_option('log_use_color'))
+if compiler.has_function('posix_fadvise', prefix: '#include <fcntl.h>')
+    conf.set10('HAVE_POSIX_FADVISE', true)
+endif
 configure_file(output: 'config.h', configuration: conf)
 
 # sources
