@@ -230,7 +230,9 @@ sd_fp_hits **load_fingerprints(void)
 				// onlist file is valid and new: build table and associate with fingerprint
 				log_info("found: %s R%d ONLIST %s", fgpts.name, rgn->read, rgn->sequence);
 
+#ifdef HAVE_POSIX_FADVISE
 				posix_fadvise(fileno(onlist_fp), 0, 0, POSIX_FADV_SEQUENTIAL | POSIX_FADV_WILLNEED);
+#endif
 				// store the pointer to the newly created table
 				// TODO: build set should generate both fwd and reverse
 				fingerprint_ids[num_fpr]         = init_fp_hit(rgn, num_fpr, SD_FWD);
@@ -245,7 +247,9 @@ sd_fp_hits **load_fingerprints(void)
 				dbg_log_fp_hit(fingerprint_ids[num_fpr]);
 				++num_fpr;
 
+#ifdef HAVE_POSIX_FADVISE
 				posix_fadvise(fileno(onlist_fp), 0, 0, POSIX_FADV_DONTNEED);
+#endif
 				fclose(onlist_fp);
 
 				rgn_seq_entry.key  = (char *)rgn->sequence;

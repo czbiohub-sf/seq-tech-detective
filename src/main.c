@@ -50,7 +50,9 @@ int main(int argc, char **argv)
 	cur = lseek(fd, 0, SEEK_CUR);
 	end = lseek(fd, 0, SEEK_END);
 
+#ifdef HAVE_POSIX_FADVISE
 	posix_fadvise(fd, cur, end, POSIX_FADV_SEQUENTIAL | POSIX_FADV_WILLNEED);
+#endif
 	read_mt(fd, cur, end, fp_hits);
 
 	delete_fingerprints(fp_hits);
