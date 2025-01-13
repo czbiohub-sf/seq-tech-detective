@@ -1,0 +1,75 @@
+name: Build_time
+
+on:
+  push:
+    branches:
+      - gh-actions
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python version
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+        
+      - name: Create and start python virtual environment
+        run: |
+          python -m venv venv
+          source venv/bin/activate 
+          
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential make gcc time
+          pip install meson ninja 
+      
+
+      - name: Build
+        run: |
+          # Adjust this command to match your project's build steps
+          /usr/bin/time -v sh -c '
+          make
+          meson compile -C build
+          '      
+      
+      - name: Archive build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled_tool
+          path: |
+            build/seq-detective-fp
+      
+      - name: Download compiled artifact
+        uses: actions/download-artifact@v4
+        with: 
+          name: compiled_tool
+          path: . 
+
+      - name: make binary executable
+        run: chmod +x seq-detective-fp
+
+      - name: List available test FASTQ files
+        run: | 
+          echo "Available FASTQ files in data/tests/workflow_data/:"
+          ls -l resources/tests/500/
+      - name: Run tool on tests fastqs
+        run: | 
+          for file in resources/tests/500/*.fastq; do
+            filename=$(echo "${file}"| awk -F/ '{print $5}')  
+            echo "Running seq-detective on ${file} from ${PWD}"
+            /usr/bin/time -v ./seq-detective-fp ${file} 
+          done
+      # - name: Upload test output
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #      name: test_results
+      #      path: logs
+      #
+
+

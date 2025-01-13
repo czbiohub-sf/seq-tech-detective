@@ -20,3 +20,6 @@ cb_*.txt
 *.pyc
 .vscode
 .cache
+
+#test data 
+test_data/*
