@@ -72,15 +72,15 @@ char *fp_hits_tostr(sd_fp_hits *fph)
 	TracyCZoneS(ctx, 10, 1);
 	const int sz  = 2048;
 	char     *msg = malloc(sz);
-	int       e;
+	int       pos = 0;
 	int       maxpos = sizeof(fph->hits) / sizeof(size_t);
 	// SEQUENCENAME: [pos: val, pos: val]
-	e = snprintf(msg, sz, "%s: [", fph->name);
+	pos = snprintf(msg, sz, "%s: [", fph->name);
 	for (int i = 0; i < maxpos; ++i) {
 		if (fph->hits[i] > 0)
-			e += snprintf(msg + e, sizeof(msg) - e, "%d: %zi, ", i, fph->hits[i]);
+			pos += snprintf(msg + pos, sz - pos, "%d: %zi, ", i, fph->hits[i]);
 	}
-	snprintf(msg + e, sizeof(msg) - e, "]");
+	snprintf(msg + pos, sz - pos, "]");
 	TracyCZoneEnd(ctx);
 	return msg;
 }
@@ -181,6 +181,7 @@ void delete_fingerprints(sd_fp_hits **fp_hits)
 	TracyCZoneS(ctx, 10, 1);
 	for (; *fp_hits != NULL; ++fp_hits) {
 		sd_fp_hits *fp_hit = *fp_hits;
+		free((void *)fp_hit->name);
 		if (fp_hit->type == SD_ONLIST)
 			free((void *)fp_hit->bc_set);
 		ll_delete(fp_hit->ofs);
