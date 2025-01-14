@@ -30,8 +30,10 @@ while getopts ":t:X:c:bh" opt; do
 	X) LIMIT="${OPTARG}" ;;
 	c) cpus="${OPTARG}" ;;
 	b) bio_only=1 ;;
-	\?) showhelp "help" && exit 1 ;;
-	h) showhelp "help" && exit 0 ;;
+	h) showhelp "help"
+		exit 0 ;;
+	*) showhelp "help"
+		exit 1 ;;
 	esac
 done
 shift $((OPTIND - 1))
@@ -39,14 +41,14 @@ ACCESSION="${1}"
 types="${2:-types}"
 
 sam2fastq_cpus=$(( cpus - 4 ))
-[[ $sam2fastq_cpus -lt 1 ]] && sam2fastq_cpus=1
+[[ "${sam2fastq_cpus}" -lt 1 ]] && sam2fastq_cpus=1
 
 fastqdumpwithlimit() {
 	ACC=$1
 	LIMIT=$2
 	fastq-dump --split-3 "${ACC}" -X "${LIMIT}" 1>&2
-	files=$(echo "${ACC}"*.fastq)
-	echo ${files}
+	files=("${ACC}"*.fastq)
+	echo "${files[@]}"
 }
 
 samdumpwithlimit() {
@@ -58,7 +60,7 @@ samdumpwithlimit() {
 	FASTQ0TEMP="${ACC}.$$.fastq.down"
 
 	# what do accessions put in 0?  having them write to same stream messes up SRR24239717
-	sam2fastq_param="-@ ${sam2fastq_cpus} -1 ${FASTQ1TEMP} -2 ${FASTQ2TEMP} -0 /dev/null -s ${FASTQ0TEMP}"
+	sam2fastq_param=(-@ "${sam2fastq_cpus}" -1 "${FASTQ1TEMP}" -2 "${FASTQ2TEMP}" -0 /dev/null -s "${FASTQ0TEMP}")
 	mate1_lines=0
 	mate2_lines=0
 	single_lines=0
@@ -67,14 +69,13 @@ samdumpwithlimit() {
 	mkfifo "${SAMPIPE}"
 	sam-dump -u "${ACC}" >"${SAMPIPE}" &
 	samdump_pid=$!
-	samtools fastq "${SAMPIPE}" ${sam2fastq_param} -T CB,UB,QX,CR,BC,QT &
+	samtools fastq "${SAMPIPE}" "${sam2fastq_param[@]}" -T CB,UB,QX,CR,BC,QT &
 	samtools_pid=$!
 	#echo "sam-dump pid: ${samdump_pid} ${samtools_pid}" 1>&2
 
-	exit_code=0
 	while true; do
 		[[ -e "${FASTQ0TEMP}" ]] && single_lines=$(wc -l "${FASTQ0TEMP}" | cut -d' ' -f1)
-		
+
 		if [[ "${single_lines}" -ge "${LIMIT}" ]]; then
 			kill "${samdump_pid}" "${samtools_pid}" 2>/dev/null || true
 			head -n "${LIMIT}" "${FASTQ0TEMP}" >"${ACC}.fastq"
@@ -105,7 +106,7 @@ samdumpwithlimit() {
 	rm "${SAMPIPE}" "${FASTQ1TEMP}" "${FASTQ2TEMP}" "${FASTQ0TEMP}"
 	# RETURNED MATES COULD BE LESS THAN LIMIT!
 	# so find out if mates have more reads
-	if [ "${mate2_lines}" -ge "${single_lines}" ]; then
+	if [[ "${mate2_lines}" -ge "${single_lines}" ]]; then
 		rm -f "${ACC}.fastq"
 		echo "${ACC}_1.fastq" "${ACC}_2.fastq"
 	else

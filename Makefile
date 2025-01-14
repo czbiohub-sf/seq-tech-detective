@@ -38,7 +38,7 @@ lint_py:
 	-ruff check
 
 lint_sh:
-	-shellcheck --extended-analysis=true -o all -e SC2312 -S style classify-rnaseq
+	-shellcheck --extended-analysis=true -o all -e SC2312,SC2094 -S style scripts/seq-detective*
 
 lint: lint_py lint_sh lint_c
 
