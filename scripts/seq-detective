@@ -48,6 +48,7 @@ SCRIPTDIR="$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")"
 
 index() {
 	set -e
+	shopt -s inherit_errexit
 	# download
 	path=$("${SCRIPTDIR}/bin/scripts/assembly-search" "${1}")
 	# find important files
@@ -85,7 +86,7 @@ fingerprint-rough() {
 	HISAT2_THREADS="${6:-8}"
 	USE_FASTP="${7:-0}"
 
-	if [ "${PRINT_HEADER}" -eq 1 ]; then
+	if [[ "${PRINT_HEADER}" -eq 1 ]]; then
 		{
 			printf "file\t"
 			fingerprint_header "${PRINT_HEADER}"
@@ -141,12 +142,12 @@ core() {
 	readlen=$(awk 'NR==4{print length($0); exit}' "${FASTQ}")
 	reads=$(( $(wc -l "${FASTQ}" | cut -f1 -d' ') / 4 ))
 
-	if [ "${FORMAT}" == "json" ]; then
+	if [[ "${FORMAT}" == "json" ]]; then
 		out="${out}$(mapping_main "${FASTQ}" "${HISAT2_INDEX}" "${GTF}" "${OUTFILE}" "${THREADS}" "${USE_FASTP}" "${reads}")"
 		out="$(json_wrap_fastq_core "${FASTQ}" "${reads}" "${readlen}" "${out}")"
 	fi
 
-	if [ "${PRETTY_PRINT}" -eq 1 ]; then
+	if [[ "${PRETTY_PRINT}" -eq 1 ]]; then
 		echo "${out}" | jq '.' 1>>"${OUTFILE}"
 	else
 		echo "${out}" 1>>"${OUTFILE}"
@@ -164,7 +165,7 @@ case "${COMMAND}" in
 	;;
 "download")
 	shift 1 # shift off subcommand
-	"${SCRIPTDIR}/seq-detective-download" $@
+	"${SCRIPTDIR}/seq-detective-download" "$@"
 	;;
 "fingerprint")
 	# file, reference prefix, gtf

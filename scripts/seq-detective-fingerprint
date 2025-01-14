@@ -2,6 +2,8 @@
 
 # module for running seq-detective fingerprint phase
 
+SCRIPTDIR="$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")"
+
 sum() {
 	paste -sd+ - | sed 's/\+ $//' | bc
 }
@@ -23,7 +25,7 @@ fp_hit_rate() {
 fingerprint_header() {
 	PRINT_HEADER="${2:-1}"
 	# header line
-	if [ "${PRINT_HEADER}" -eq 1 ]; then
+	if [[ "${PRINT_HEADER}" -eq 1 ]]; then
 		printf "spots\treadlen\t"
 		printf "10x_v2\t10x_v2_rc\t10x_v3\t10x_v3_rc\t"
 		printf "fp_indrop_bc1\tfp_indrop_bc1_rc\tfp_indrop_link\tfp_indrop_link_rc\tfp_indrop_bc2\tfp_indrop_bc2_rc\t"
@@ -59,6 +61,7 @@ parse_fingerprint() {
 
 fingerprint_main() {
 	set -e
+	shopt -s inherit_errexit
 	FASTQ="${1}"
 	OUTFILE="${4:-/dev/stdout}"
 	PRINT_HEADER="${5:-0}"
@@ -77,8 +80,8 @@ fingerprint_main() {
 }
 
 # https://gabrielstaples.com/bash-libraries/
-if [ "${BASH_SOURCE[0]}" = "$0" ]; then
-	if [ "$#" -lt 1 ]; then
+if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
+	if [[ "$#" -lt 1 ]]; then
 		echo "Usage: $0 <FASTQ> [OUTFILE] [PRINT_HEADER]" >&2
 	else
 		fingerprint_main "$@"
