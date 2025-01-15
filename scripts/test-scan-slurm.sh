@@ -57,7 +57,7 @@ for idx in $(seq "${START}" "${END}"); do
 	# open accession block
 	json="{\"accession\": \"${ACCESSION}\","
 	json="${json}\"readfiles\": [${NL}"
-	files=$(seq-detective-download -X 200000 -c $(( SLURM_CPUS_PER_TASK - 1 )) -b "${ACCESSION}" "${types}")
+	files=$(seq-detective-download -X 200000 -c $((SLURM_CPUS_PER_TASK - 1)) -b "${ACCESSION}" "${types}")
 	first=1
 	for file in ${files}; do
 		# array item per file
