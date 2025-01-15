@@ -54,7 +54,12 @@ fs.copyfile(
     install: true,
     install_dir: '.',
 )
-fs.copyfile('seq-detective-map', 'seq-detective-map', install: true, install_dir: '.')
+fs.copyfile(
+    'seq-detective-map',
+    'seq-detective-map',
+    install: true,
+    install_dir: '.',
+)
 fs.copyfile('seq-detective', 'seq-detective', install: true, install_dir: '.')
 
 # test(
