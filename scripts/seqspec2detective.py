@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
 import argparse
-import gzip
 from pathlib import Path
 import re
 import yaml
-
-from seqspec.Assay import Assay
-from seqspec.Region import Onlist
 
 class RegionFingerprint:
     def __init__(self,
@@ -94,7 +90,7 @@ def map_read_id_to_regions(spec, read_id):
     leaves = spec.get_libspec('rna').get_leaves()
     read = [i for i in spec.sequence_spec if i.read_id == read_id][0]
     primer_id = read.primer_id
-    primer_idx = [i for i, l in enumerate(leaves) if l.region_id == primer_id][0]
+    primer_idx = [i for i, leaf in enumerate(leaves) if leaf.region_id == primer_id][0]
 
     # iteration direction
     if read.strand == "neg":

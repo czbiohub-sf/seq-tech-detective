@@ -23,7 +23,7 @@ class pattern:
         cmd = ['ug', errarg, '--format=%n%~', self.pattern, file]
         output = subprocess.run(cmd, text=True, stdout=subprocess.PIPE)
         # caution! 1-indexed and header
-        idxs = collections.Counter(int(l)-2 for l in output.stdout.split())
+        idxs = collections.Counter(int(line)-2 for line in output.stdout.split())
         return idxs
 
 def metadata_annotate(file, keep_cols=[]):
