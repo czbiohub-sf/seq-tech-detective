@@ -1,13 +1,11 @@
 #include "fastq.h"
 
-#include <errno.h>
 #include <omp.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdnoreturn.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "filereader.h"
 #include "fingerprint_info.h"

@@ -1,6 +1,7 @@
 #pragma once
+#include <stddef.h>
 #include <stdint.h>
-#include <sys/types.h>
+#include <stdio.h>
 
 #include "table_builder.h"
 

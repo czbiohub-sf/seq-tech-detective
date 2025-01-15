@@ -1,4 +1,6 @@
 #include <rexo.h>
+#include <stdint.h>
+#include <string.h>
 #include <table_builder.h>
 
 // A       [       0]

@@ -1,8 +1,9 @@
 #include <log.h>
 #include <rexo.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "fastq.h"
-#include "filereader.h"
 #include "table_builder.h"
 
 struct fixture_data {
