@@ -30,17 +30,21 @@ while getopts ":t:X:c:bh" opt; do
 	X) LIMIT="${OPTARG}" ;;
 	c) cpus="${OPTARG}" ;;
 	b) bio_only=1 ;;
-	h) showhelp "help"
-		exit 0 ;;
-	*) showhelp "help"
-		exit 1 ;;
+	h)
+		showhelp "help"
+		exit 0
+		;;
+	*)
+		showhelp "help"
+		exit 1
+		;;
 	esac
 done
 shift $((OPTIND - 1))
 ACCESSION="${1}"
 types="${2:-types}"
 
-sam2fastq_cpus=$(( cpus - 4 ))
+sam2fastq_cpus=$((cpus - 4))
 [[ "${sam2fastq_cpus}" -lt 1 ]] && sam2fastq_cpus=1
 
 fastqdumpwithlimit() {
@@ -83,19 +87,24 @@ samdumpwithlimit() {
 		fi
 		[[ -e "${FASTQ1TEMP}" ]] && mate1_lines=$(wc -l "${FASTQ1TEMP}" | cut -d' ' -f1)
 		[[ -e "${FASTQ2TEMP}" ]] && mate2_lines=$(wc -l "${FASTQ2TEMP}" | cut -d' ' -f1)
-		if [[ ( "${mate1_lines}" -ge "${LIMIT}" ) && ( "${mate2_lines}" -ge "${LIMIT}") ]]; then
+		if [[ ("${mate1_lines}" -ge "${LIMIT}") && ("${mate2_lines}" -ge "${LIMIT}") ]]; then
 			kill "${samdump_pid}" "${samtools_pid}" 2>/dev/null || true
-			head -n "${LIMIT}" "${FASTQ1TEMP}" >"${ACC}_1.fastq" & head1pid=$!
-			head -n "${LIMIT}" "${FASTQ2TEMP}" >"${ACC}_2.fastq" & head2pid=$!
+			head -n "${LIMIT}" "${FASTQ1TEMP}" >"${ACC}_1.fastq" &
+			head1pid=$!
+			head -n "${LIMIT}" "${FASTQ2TEMP}" >"${ACC}_2.fastq" &
+			head2pid=$!
 			wait "${head1pid}" "${head2pid}"
 			break
 		fi
 		if [[ ! -e "/proc/${samdump_pid}" ]]; then
 			kill "${samtools_pid}" 2>/dev/null || true
 			# could still have valid result under the limit to return
-			head -n "${LIMIT}" "${FASTQ0TEMP}" >"${ACC}.fastq" & head0pid=$!
-			head -n "${LIMIT}" "${FASTQ1TEMP}" >"${ACC}_1.fastq" & head1pid=$!
-			head -n "${LIMIT}" "${FASTQ2TEMP}" >"${ACC}_2.fastq" & head2pid=$!
+			head -n "${LIMIT}" "${FASTQ0TEMP}" >"${ACC}.fastq" &
+			head0pid=$!
+			head -n "${LIMIT}" "${FASTQ1TEMP}" >"${ACC}_1.fastq" &
+			head1pid=$!
+			head -n "${LIMIT}" "${FASTQ2TEMP}" >"${ACC}_2.fastq" &
+			head2pid=$!
 			wait "${head0pid}" "${head1pid}" "${head2pid}"
 			break
 		fi

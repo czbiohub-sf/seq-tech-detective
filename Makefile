@@ -44,5 +44,8 @@ lint: lint_py lint_sh lint_c
 
 # format
 fmt:
+	-shfmt -w scripts/seq-detective*
+	-shfmt -w scripts/*.sh
 	meson fmt -r -i
 	meson --internal clangformat . $(BUILDDIR)
+

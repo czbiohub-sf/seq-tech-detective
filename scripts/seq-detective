@@ -18,7 +18,7 @@
 #: seq-detective download
 #: download SRA with a read limit using seq-detective rules (not implemented)
 #:    usage: seq-detective download [-X limit] [-c threads] [-b] <ACCESSION> <types>
-#: 
+#:
 #:    <types>       Original SRA upload semantic_name(s), e.g. "bam" or "fastq fastq fastq".
 #:    [-X limit]    (2000000) Read limit.  set to <UNIMPLEMENTED> for no limit
 #:    [-c threads]  (# cores) Threads to use (for sam/bam conversion)
@@ -140,7 +140,7 @@ core() {
 
 	# get read length and number of reads directly from fastq since we don't run fingerprint
 	readlen=$(awk 'NR==4{print length($0); exit}' "${FASTQ}")
-	reads=$(( $(wc -l "${FASTQ}" | cut -f1 -d' ') / 4 ))
+	reads=$(($(wc -l "${FASTQ}" | cut -f1 -d' ') / 4))
 
 	if [[ "${FORMAT}" == "json" ]]; then
 		out="${out}$(mapping_main "${FASTQ}" "${HISAT2_INDEX}" "${GTF}" "${OUTFILE}" "${THREADS}" "${USE_FASTP}" "${reads}")"
