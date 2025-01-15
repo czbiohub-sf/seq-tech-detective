@@ -1,4 +1,5 @@
 #pragma once
+#include <stddef.h>
 #include <stdnoreturn.h>
 #include <sys/types.h>
 

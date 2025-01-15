@@ -1,5 +1,8 @@
+#include <fingerprint_info.h>
 #include <log.h>
 #include <rexo.h>
+#include <stdlib.h>
+#include <string.h>
 #include <table_builder.h>
 
 /*

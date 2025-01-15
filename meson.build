@@ -12,13 +12,17 @@ project(
 exename = 'seq-detective-fp'
 compiler = meson.get_compiler('c')
 
-proj_args = ['-g3']
+proj_args = [
+    '-g3',
+    '-Wno-gnu-binary-literal',  # clang-18 bug
+]
 if get_option('test').enabled()
     proj_args += [
         '-Wno-stringop-overread',  # intentional
         '-Wno-attributes',  # rexo
         '-Wno-format-extra-args',  # rexo
         '-Wno-clobbered',  # rexo
+        '-Wno-unknown-warning-option',  # clang...
     ]
 endif
 add_project_arguments(proj_args, language: ['c'])

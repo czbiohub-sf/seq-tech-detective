@@ -1,6 +1,5 @@
 #include "table_builder.h"
 
-#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <search.h>
@@ -70,9 +69,9 @@ void dbg_log_fp_hit(sd_fp_hits *fph)
 char *fp_hits_tostr(sd_fp_hits *fph)
 {
 	TracyCZoneS(ctx, 10, 1);
-	const int sz  = 2048;
-	char     *msg = malloc(sz);
-	int       pos = 0;
+	const int sz     = 2048;
+	char     *msg    = malloc(sz);
+	int       pos    = 0;
 	int       maxpos = sizeof(fph->hits) / sizeof(size_t);
 	// SEQUENCENAME: [pos: val, pos: val]
 	pos = snprintf(msg, sz, "%s: [", fph->name);
@@ -166,7 +165,7 @@ ENTRY *get_fingerprint_id(const sd_fingerprint *rgn)
 	return hsearch(ol_entry, FIND);
 }
 
-void ll_delete(sd_fp_ofs_node *ofs)
+static void ll_delete(sd_fp_ofs_node *ofs)
 {
 	TracyCZoneS(ctx, 10, 1);
 	if (ofs == NULL)

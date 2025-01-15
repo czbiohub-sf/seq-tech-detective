@@ -1,11 +1,11 @@
 #include "filereader.h"
 
 #include <errno.h>
-#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdnoreturn.h>
 #include <string.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "tracy.h"
