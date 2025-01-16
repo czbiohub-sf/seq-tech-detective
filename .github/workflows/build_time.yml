@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - gh-actions
-
+      - main
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -37,7 +37,6 @@ jobs:
           make
           meson compile -C build
           '      
-      
       - name: Archive build artifact
         uses: actions/upload-artifact@v4
         with:
@@ -45,6 +44,17 @@ jobs:
           path: |
             build/seq-detective-fp
       
+
+
+
+  runtime:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+
+      - name: Check out repository 
+        uses: actions/checkout@v4
+        
       - name: Download compiled artifact
         uses: actions/download-artifact@v4
         with: 
@@ -54,6 +64,11 @@ jobs:
       - name: make binary executable
         run: chmod +x seq-detective-fp
 
+      - name: ensure GNU time is installed
+        run: | 
+          sudo apt-get update
+          sudo apt-get install -y time
+
       - name: List available test FASTQ files
         run: | 
           echo "Available FASTQ files in data/tests/workflow_data/:"
@@ -62,14 +77,9 @@ jobs:
         run: | 
           for file in resources/tests/500/*.fastq; do
             filename=$(echo "${file}"| awk -F/ '{print $5}')  
-            echo "Running seq-detective on ${file} from ${PWD}"
-            /usr/bin/time -v ./seq-detective-fp ${file} 
+            echo "=== Running seq-detective on ${file} from ${PWD} ==="
+            /usr/bin/time -v ./seq-detective-fp ${file}
+            echo "-------------------------------------"
+            echo ""
           done
-      # - name: Upload test output
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #      name: test_results
-      #      path: logs
-      #
-
-
+    
