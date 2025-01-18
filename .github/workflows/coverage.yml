@@ -8,42 +8,49 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest","macos-latest"]
+        # ,"macos-latest"]
+        python-version: ["3.9"]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Set up Conda env
-        uses: conda-incubator/setup-miniconda@v2
+        uses: mamba-org/setup-micromamba@v2 
         with:
-          activate-environment: seq-detective
-          mamba-version: "*"
-          python-version: '3.9'
-          channels: conda-forge 
+          # generate-run-shell: true
+          environment-name: seq-detective
+          channels: conda-forge, defaults
+          create-args: >-
+            meson 
+            ninja 
+            make 
+            gcc 
+            time 
+            cxx-compiler
+            cmake
+            gcovr
+          auto-activate-base: false
+          cache-environment: true
+          post-cleanup: 'all'
         
 
-      - name: Install dependencies
-        shell: bash -el {0}
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential make gcc time
-          mamba install meson ninja gcovr cmake
       - name: Build
-        shell: bash -el {0}
         run: |
-          make
-          meson configure build -Dtest=enabled -Db_coverage=true    
+           micromamba run -n seq-detective make
+           micromamba run -n seq-detective meson configure build -Dtest=enabled -Db_coverage=true    
    
       - name: Run Test Suite  
-        shell: bash -el {0}
         run: |
-          meson test -C build
+          micromamba run -n seq-detective meson test -C build
 
       - name: Generate Coverage
-        shell: bash -el {0}
         run: | 
-          ninja coverage-text -C build
+          micromamba run -n seq-detective ninja coverage-text -C build
           echo "=======Coverage Report======="
           cat build/meson-logs/coverage.txt
       - name: Upload coverage logs
