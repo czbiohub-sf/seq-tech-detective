@@ -14,35 +14,38 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Python version
-        uses: actions/setup-python@v4
+      - name: Set up Conda env
+        uses: conda-incubator/setup-miniconda@v3
         with:
+          activate-environment: seq-detective
+          mamba-version: "*"
           python-version: '3.9'
+          channels: conda-forge 
         
-      - name: Create and start python virtual environment
-        run: |
-          python -m venv venv
-          source venv/bin/activate 
-          
 
       - name: Install dependencies
+        shell: bash -el {0}
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential make gcc time
-          pip install meson ninja gcovr cmake
+          mamba install meson ninja gcovr cmake
       - name: Build
+        shell: bash -el {0}
         run: |
-          # Adjust this command to match your project's build steps
           make
           meson configure build -Dtest=enabled -Db_coverage=true    
    
-      - name: Run Test Suite 
+      - name: Run Test Suite  
+        shell: bash -el {0}
         run: |
           meson test -C build
 
       - name: Generate Coverage
+        shell: bash -el {0}
         run: | 
           ninja coverage-text -C build
+          echo "=======Coverage Report======="
+          cat build/meson-logs/coverage.txt
       - name: Upload coverage logs
         uses: actions/upload-artifact@v4
         with:
