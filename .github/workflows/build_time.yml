@@ -7,80 +7,112 @@ on:
       - main
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest","macos-latest"]
+        # ,"macos-latest"]
+        python-version: ["3.9"]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Set up Conda env
-        uses: conda-incubator/setup-miniconda@v2
+        uses: mamba-org/setup-micromamba@v2 
         with:
-          activate-environment: seq-detective
-          mamba-version: "*"
-          python-version: '3.9'
-          channels: conda-forge 
-          
-      - name: Install dependencies
-        shell: bash -el {0}
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential make gcc time
-          mamba install meson ninja 
-      
+          # generate-run-shell: true
+          environment-name: seq-detective
+          channels: conda-forge, defaults
+          create-args: >-
+            meson 
+            ninja 
+            make 
+            gcc 
+            time 
+            cxx-compiler
+          auto-activate-base: false
+          cache-environment: true
+          post-cleanup: 'all'
 
+      - name: Verify env 
+        run: |
+          micromamba run -n seq-detective meson --version
+          micromamba run -n seq-detective ninja --version
+          micromamba run -n seq-detective make --version
+          micromamba run -n seq-detective gcc --version
+          micromamba run -n seq-detective g++ --version
+          micromamba run -n seq-detective time --version
+          
       - name: Build
-        shell: bash -el {0}
         run: |
           # Adjust this command to match your project's build steps
-          /usr/bin/time -v sh -c '
+          micromamba run -n seq-detective time -v sh -c '
           make
           meson compile -C build
           '
       - name: Archive build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: compiled_tool
+          name: seq-detective-binary
           compression-level: 6
           if-no-files-found: error
           path: |
             *
             #build/seq-detective-fp
             #resources/
-
-
+      
+      
   runtime:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest", "macos-latest"]
+        python-version: ["3.9"]
     needs: build
     steps:
-
       - name: Check out repository 
         uses: actions/checkout@v4
-        
+       
       - name: Download compiled artifact
         uses: actions/download-artifact@v4
         with: 
-          name: compiled_tool
+          name: seq-detective-binary 
           path: . 
-
+  
       - name: make binary executable
         run: chmod +x build/seq-detective-fp
-
+     
+      - name: Set up Conda env
+        uses: mamba-org/setup-micromamba@v2 
+        with:
+          # generate-run-shell: true
+          environment-name: seq-detective
+          channels: conda-forge, defaults
+          create-args: >-
+            time 
+          auto-activate-base: false
+          cache-environment: true
+          post-cleanup: 'all'
+  
       - name: ensure GNU time is installed
         run: | 
-          sudo apt-get update
-          sudo apt-get install -y time
-
+          # sudo apt-get update
+          # sudo apt-get install -y time
+            micromamba run -n seq-detective time --version
       - name: List available test FASTQ files
         run: | 
-          echo "Available FASTQ files in data/tests/workflow_data/:"
+          echo "Available FASTQ files in resources/tests/500:"
           ls -l resources/tests/500/
       - name: Run tool on tests fastqs
+        shell: bash -el {0}
         run: | 
           for file in resources/tests/500/*.fastq; do
             filename=$(echo "${file}"| awk -F/ '{print $5}')  
             echo "=== Running seq-detective on ${file} from ${PWD} ==="
-            /usr/bin/time -v build/seq-detective-fp ${file}
+             micromamba run -n seq-detective time -v build/seq-detective-fp ${file}
             echo "-------------------------------------"
             echo ""
           done
-    
+   
