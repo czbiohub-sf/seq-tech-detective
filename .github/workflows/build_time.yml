@@ -51,17 +51,10 @@ jobs:
             clang
             time 
             cxx-compiler
+            llvm-openmp
           # auto-activate-base: false
           cache-environment: true
-          post-cleanup: 'all'
-      
-      - name: Install libomp for macOS using Brew
-        if: runner.os =='macOS'
-        run: | 
-          brew update
-          brew install libomp
-      
-      
+          post-cleanup: 'all'      
 
       - name: Verify env 
         run: |
@@ -71,6 +64,10 @@ jobs:
           micromamba run -n seq-detective gcc --version
           micromamba run -n seq-detective g++ --version
           micromamba run -n seq-detective time --version
+      
+      - name: verify libomp is installed
+        run: |
+          micromamba run -n seq-detective micromamba list | grep openmp
           
       - name: Build
         run: |
@@ -137,14 +134,17 @@ jobs:
           environment-name: seq-detective
           channels: conda-forge, defaults
           create-args: >-
-            time 
+            time
+            llvm-openmp
           auto-activate-base: false
           cache-environment: true
           post-cleanup: 'all'
   
-      - name: ensure GNU time is installed
+      - name: ensure GNU time & libomp is installed
         run: | 
             micromamba run -n seq-detective time --version
+            micromamba run -n seq-detective micromamba list | grep openmp 
+            ls /Users/runner/micromamba/envs/seq-detective/lib/libomp.dylib
       - name: List available test FASTQ files
         run: | 
           echo "Available FASTQ files in resources/tests/500:"
