@@ -74,17 +74,26 @@ jobs:
           make
           meson compile -C build
           '
-      - name: Archive build artifact
+      - name: Archive build artifact for Linux
         uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
         with:
-          name: seq-detective-binary
+          name: seq-detective-binary-linux
           compression-level: 6
           if-no-files-found: error
           path: |
             *
-            #build/seq-detective-fp
-            #resources/
+      - name: Archive build artifact for macOS 
+        uses: actions/upload-artifact@v4
+        if: runner.os == 'macOS'
+        with:
+          name: seq-detective-binary-macos
+          compression-level: 6
+          if-no-files-found: error
+          path: |
+            *
       
+
       
   runtime:
     runs-on: ${{ matrix.os }}
@@ -98,12 +107,21 @@ jobs:
       - name: Check out repository 
         uses: actions/checkout@v4
        
-      - name: Download compiled artifact
+      - name: Download compiled artifact for Linux
         uses: actions/download-artifact@v4
+        if: runner.os == 'Linux'
         with: 
-          name: seq-detective-binary 
+          name: seq-detective-binary-linux 
+          path: . 
+      
+      - name: Download compiled artifact for macOS 
+        uses: actions/download-artifact@v4
+        if: runner.os == 'macOS'
+        with: 
+          name: seq-detective-binary-macos 
           path: . 
   
+
       - name: make binary executable
         run: chmod +x build/seq-detective-fp
      
@@ -121,8 +139,6 @@ jobs:
   
       - name: ensure GNU time is installed
         run: | 
-          # sudo apt-get update
-          # sudo apt-get install -y time
             micromamba run -n seq-detective time --version
       - name: List available test FASTQ files
         run: | 
