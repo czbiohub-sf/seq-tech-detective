@@ -66,6 +66,7 @@ jobs:
           micromamba run -n seq-detective time --version
       
       - name: verify libomp is installed
+        if: runner.os == 'macOS'
         run: |
           micromamba run -n seq-detective micromamba list | grep openmp
           
@@ -140,11 +141,15 @@ jobs:
           cache-environment: true
           post-cleanup: 'all'
   
-      - name: ensure GNU time & libomp is installed
+      - name: ensure GNU time is installed
         run: | 
             micromamba run -n seq-detective time --version
+      - name: ensure libomp is installed
+        if: runner.os == 'macOS'
+        run: | 
             micromamba run -n seq-detective micromamba list | grep openmp 
             ls /Users/runner/micromamba/envs/seq-detective/lib/libomp.dylib
+     
       - name: List available test FASTQ files
         run: | 
           echo "Available FASTQ files in resources/tests/500:"
