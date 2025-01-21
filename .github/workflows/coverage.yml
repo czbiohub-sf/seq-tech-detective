@@ -96,10 +96,20 @@ jobs:
           micromamba run -n seq-detective ninja coverage-text -C build
           echo "=======Coverage Report======="
           cat build/meson-logs/coverage.txt
-      - name: Upload coverage logs
+      
+      - name: Upload coverage logs for Linux 
         uses: actions/upload-artifact@v4
+        if: runner.os =='Linux'
         with:
-          name: coverage-logs
+          name: coverage-logs-linux
           path: build/meson-logs
+      
+      - name: Upload coverage logs for macOS
+        uses: actions/upload-artifact@v4
+        if: runner.os =='macOS'
+        with:
+          name: coverage-logs-macos
+          path: build/meson-logs
+
 
 
