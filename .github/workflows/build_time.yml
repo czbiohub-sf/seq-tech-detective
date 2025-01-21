@@ -51,10 +51,15 @@ jobs:
             clang
             time 
             cxx-compiler
-            llvm-openmp
           # auto-activate-base: false
           cache-environment: true
           post-cleanup: 'all'
+      
+      - name: Install libomp for macOS using Brew
+        if: runner.os =='macOS'
+        run: | 
+          brew update
+          brew install libomp
       
       
 
