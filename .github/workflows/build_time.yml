@@ -19,8 +19,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Conda env
-        uses: mamba-org/setup-micromamba@v2 
+      - name: Set up Conda env for Linux
+        uses: mamba-org/setup-micromamba@v2
+        if: runner.os == 'Linux'
         with:
           # generate-run-shell: true
           environment-name: seq-detective
@@ -35,6 +36,27 @@ jobs:
           # auto-activate-base: false
           cache-environment: true
           post-cleanup: 'all'
+      
+      - name: Set up Conda env for macOS
+        uses: mamba-org/setup-micromamba@v2
+        if: runner.os == 'macOS'
+        with:
+          # generate-run-shell: true
+          environment-name: seq-detective
+          # channels: conda-forge, bioconda
+          create-args: >-
+            meson 
+            ninja 
+            make
+            clang
+            time 
+            cxx-compiler
+            llvm-openmp
+          # auto-activate-base: false
+          cache-environment: true
+          post-cleanup: 'all'
+      
+      
 
       - name: Verify env 
         run: |
