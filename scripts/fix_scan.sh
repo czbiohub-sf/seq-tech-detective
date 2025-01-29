@@ -11,7 +11,7 @@ for subf in "${DIR}"/*"${ext}"; do
 	# the job may have restarted, ignore earlier attempts
 	start_line=$(grep -n "^\[$" "${subf}" | tail -n1 | cut -d ":" -f1)
 	# skip opening bracket
-	tail -n+$((start_line + 1)) "${subf}" | sed -z 's/},\n]/}\n]/g' | head -n-1 | sed -E 's/: ?,/: null,/g' | sed 's/: }/: null}/g' | sed -z 's/}\n{/},\n{/g'
+	tail -n+$(( start_line + 1 )) "${subf}" | sed -z 's/},\n]/}\n]/g' | head -n-1 | sed -E 's/^,\n//g' | sed -z 's/,\n\n/\n/g' | sed -E 's/: ?,/: null,/g' | sed 's/: }/: null}/g' | sed -z 's/}\n{/},\n{/g'
 	first=0
 done
 echo "]"
