@@ -10,6 +10,9 @@ class pattern:
     # a fuzzy match pattern runnable with ugrep
     # we use subprocess to run the command and capture the output
     # as matching line numbers, which are used as dataframe indices
+    # usually runs:
+    # ug -iPno --format=%n%~ <PAT> $file
+    # ug -nZbest1 --format=%n%~ <PAT> $file
 
     def __init__(self, name, pattern, max_err):
         self.name = name
@@ -32,8 +35,9 @@ def metadata_annotate(file, keep_cols=[]):
     # NAME, PATTERN, MAXERRORS
     patterns = [
         pattern('bulk', '(the |nano(particles)?[^a-z]* ?)?bulk', 0),
-        pattern("10x1", '[^\t;]*(?!/)10x[^\t;]*', 0),
+        pattern("10x1", '[^\t;]*(?<!/)10x[^\t;]*', 0),
         pattern('10x2', 'chromium', 1),
+        pattern('10x3', 'Gel Bead Kit V3', 1),
 
         pattern('droncseq', 'dronc[-_ ]?seq', 1),
         pattern('dropseq', '\\bdrop[-_ ]?seq', 0),
@@ -73,7 +77,7 @@ def metadata_annotate(file, keep_cols=[]):
         **{p.name: blank.replace_strict(p.run(df, file), default=0) for p in patterns}
     ).unique(subset=['accession'])
     # sum generic scrnaseq columns into a single column
-    sum_cols = [['10x1', '10x2'],
+    sum_cols = [['10x1', '10x2', '10x3'],
                 ['generic-scrnaseq1', 'generic-scrnaseq2'],
                 ['smartseq1', 'smartseq2']]
     df = df.with_columns(
@@ -81,7 +85,7 @@ def metadata_annotate(file, keep_cols=[]):
     ).drop([col for cols in sum_cols for col in cols])
     # select the columns to keep, without sum_cols
     tech_cols = [p.name for p in patterns if p.name not in 
-                 ['10x1', '10x2', 'smartseq1', 'smartseq2', 'generic-scrnaseq1', 'generic-scrnaseq2']
+                 ['10x1', '10x2', '10x3', 'smartseq1', 'smartseq2', 'generic-scrnaseq1', 'generic-scrnaseq2']
                 ]
     tech_cols = tech_cols + ['10x', 'smartseq', 'generic-scrnaseq']
     keep_cols = keep_cols + tech_cols
@@ -106,6 +110,7 @@ if __name__ == "__main__":
         study = study.rename({col: f"{col}_study" for col in tech_cols})
         # combine the dataframes
         df = run.join(exp, left_on='experiment', right_on='accession', how='left', suffix='_experiment').join(samn, left_on='pool_member', right_on='accession', how='left', suffix='_sample').join(study, left_on='study', right_on='accession', how='left', suffix='_study')
+        #keep_library_source = ['TRANSCRIPTOMIC', 'METATRANSCRIPTOMIC', 'TRANSCRIPTOMIC_SINGLE_CELL']
         # create new weighted tech column
         df = df.with_columns(
             **{f"{col}": df[f"{col}_run"]*1000 + df[f"{col}_sample"]*100 + df[f"{col}_experiment"]*10 + df[f"{col}_study"] for col in tech_cols}
