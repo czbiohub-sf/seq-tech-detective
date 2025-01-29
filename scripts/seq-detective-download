@@ -73,10 +73,10 @@ samdumpwithlimit() {
 
 	rm -f "${SAMPIPE}" "${FASTQ1TEMP}" "${FASTQ2TEMP}" "${FASTQ0TEMP}" "${FASTQXTEMP}"
 	mkfifo "${SAMPIPE}"
-	sam-dump -u "${ACC}" >"${SAMPIPE}" &
+	sam-dump -u "${ACC}" | head -n $(($2 + 4000)) | samtools sort -n >"${SAMPIPE}" &
 	samdump_pid=$!
 	# mates must be namesorted or fastq conversion doesn't work.  keep a sorting buffer only as long as we need.
-	samtools collate -f -r $((LIMIT + 2000)) "${SAMPIPE}" -O | samtools fastq "${sam2fastq_param[@]}" -T CB,UB,QX,CR,BC,QT &
+	samtools fastq "${SAMPIPE}" "${sam2fastq_param[@]}" -T CB,UB,QX,CR,BC,QT &
 	samtools_pid=$!
 	#echo "sam-dump pid: ${samdump_pid} ${samtools_pid}" 1>&2
 
