@@ -21,7 +21,7 @@ showhelp() {
 
 types=""
 bio_only="0"
-LIMIT="2000000"
+LIMIT="200000"
 cpus="$(nproc)"
 
 while getopts ":t:X:c:bh" opt; do
@@ -62,24 +62,32 @@ samdumpwithlimit() {
 	FASTQ1TEMP="${ACC}_1.$$.fastq.down"
 	FASTQ2TEMP="${ACC}_2.$$.fastq.down"
 	FASTQ0TEMP="${ACC}.$$.fastq.down"
+	FASTQXTEMP="${ACC}_X.$$.fastq.down"
 
 	# what do accessions put in 0?  having them write to same stream messes up SRR24239717
-	sam2fastq_param=(-@ "${sam2fastq_cpus}" -1 "${FASTQ1TEMP}" -2 "${FASTQ2TEMP}" -0 /dev/null -s "${FASTQ0TEMP}")
+	sam2fastq_param=(-@ "${sam2fastq_cpus}" -1 "${FASTQ1TEMP}" -2 "${FASTQ2TEMP}" -0 "${FASTQ0TEMP}" -s "${FASTQXTEMP}")
 	mate1_lines=0
 	mate2_lines=0
 	single_lines=0
+	single_lines_2=0
 
-	rm -f "${SAMPIPE}" "${FASTQ1TEMP}" "${FASTQ2TEMP}" "${FASTQ0TEMP}"
+	rm -f "${SAMPIPE}" "${FASTQ1TEMP}" "${FASTQ2TEMP}" "${FASTQ0TEMP}" "${FASTQXTEMP}"
 	mkfifo "${SAMPIPE}"
 	sam-dump -u "${ACC}" >"${SAMPIPE}" &
 	samdump_pid=$!
-	samtools fastq "${SAMPIPE}" "${sam2fastq_param[@]}" -T CB,UB,QX,CR,BC,QT &
+	# mates must be namesorted or fastq conversion doesn't work.  keep a sorting buffer only as long as we need.
+	samtools collate -f -r $((LIMIT + 2000)) "${SAMPIPE}" -O | samtools fastq "${sam2fastq_param[@]}" -T CB,UB,QX,CR,BC,QT &
 	samtools_pid=$!
 	#echo "sam-dump pid: ${samdump_pid} ${samtools_pid}" 1>&2
 
 	while true; do
+		[[ -e "${FASTQXTEMP}" ]] && single_lines=$(wc -l "${FASTQXTEMP}" | cut -d' ' -f1)
+		if [[ "${single_lines}" -ge "${LIMIT}" ]]; then
+			kill "${samdump_pid}" "${samtools_pid}" 2>/dev/null || true
+			head -n "${LIMIT}" "${FASTQXTEMP}" >"${ACC}.fastq"
+			break
+		fi
 		[[ -e "${FASTQ0TEMP}" ]] && single_lines=$(wc -l "${FASTQ0TEMP}" | cut -d' ' -f1)
-
 		if [[ "${single_lines}" -ge "${LIMIT}" ]]; then
 			kill "${samdump_pid}" "${samtools_pid}" 2>/dev/null || true
 			head -n "${LIMIT}" "${FASTQ0TEMP}" >"${ACC}.fastq"
@@ -99,12 +107,16 @@ samdumpwithlimit() {
 		if [[ ! -e "/proc/${samdump_pid}" ]]; then
 			kill "${samtools_pid}" 2>/dev/null || true
 			# could still have valid result under the limit to return
-			head -n "${LIMIT}" "${FASTQ0TEMP}" >"${ACC}.fastq" &
-			head0pid=$!
-			head -n "${LIMIT}" "${FASTQ1TEMP}" >"${ACC}_1.fastq" &
-			head1pid=$!
-			head -n "${LIMIT}" "${FASTQ2TEMP}" >"${ACC}_2.fastq" &
-			head2pid=$!
+			# first decide a winner for unmated/singlet reads
+			[[ -e "${FASTQXTEMP}" ]] && single_lines_2=$(wc -l "${FASTQXTEMP}" | cut -d' ' -f1)
+			if [[ "${single_lines_2}" -ge "${single_lines}" ]]; then
+				single_lines="${single_lines_2}"
+				head -n "${LIMIT}" "${FASTQXTEMP}" >"${ACC}.fastq" & head0pid=$!
+			else
+				head -n "${LIMIT}" "${FASTQ0TEMP}" >"${ACC}.fastq" & head0pid=$!
+			fi
+			head -n "${LIMIT}" "${FASTQ1TEMP}" >"${ACC}_1.fastq" & head1pid=$!
+			head -n "${LIMIT}" "${FASTQ2TEMP}" >"${ACC}_2.fastq" & head2pid=$!
 			wait "${head0pid}" "${head1pid}" "${head2pid}"
 			break
 		fi
@@ -112,7 +124,7 @@ samdumpwithlimit() {
 	done
 	kill "${samdump_pid}" "${samtools_pid}" 2>/dev/null || true
 
-	rm "${SAMPIPE}" "${FASTQ1TEMP}" "${FASTQ2TEMP}" "${FASTQ0TEMP}"
+	rm "${SAMPIPE}" "${FASTQ1TEMP}" "${FASTQ2TEMP}" "${FASTQ0TEMP}" "${FASTQXTEMP}"
 	# RETURNED MATES COULD BE LESS THAN LIMIT!
 	# so find out if mates have more reads
 	if [[ "${mate2_lines}" -ge "${single_lines}" ]]; then
