@@ -2,7 +2,6 @@ name: seq-detective
 channels:
   - conda-forge
   - bioconda
-  - anaconda
 dependencies:
   # remove this before push
   - conda-forge::bc
