@@ -133,19 +133,30 @@ jobs:
 
       - name: make binary executable
         run: chmod +x build/seq-detective-fp
-     
-      - name: Set up Conda env
-        uses: mamba-org/setup-micromamba@v2 
+      
+      - name: Set up Conda env for Linux
+        uses: mamba-org/setup-micromamba@v2
+        if: runner.os == 'Linux'
         with:
-          # generate-run-shell: true
+          environment-name: seq-detective
+          create-args: >-
+            time
+            llvm-openmp
+          post-cleanup: 'all'
+      
+      - name: Set up Conda env for macOS
+        uses: mamba-org/setup-micromamba@v2
+        if: runner.os == 'macOS'
+        with:
           environment-name: seq-detective
           create-args: >-
             time
             llvm-openmp
             --platform osx-64
-          cache-environment: true
           post-cleanup: 'all'
-  
+     
+
+        
       - name: ensure GNU time is installed
         run: | 
             micromamba run -n seq-detective time --version
