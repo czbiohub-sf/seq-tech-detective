@@ -58,7 +58,7 @@ jobs:
       - name: Install make for Linux
         if: runner.os == 'Linux'
         run: |
-          apt install make 
+          sudo apt install make 
 
 
 
