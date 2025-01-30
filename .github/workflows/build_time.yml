@@ -142,6 +142,7 @@ jobs:
           create-args: >-
             time
             llvm-openmp
+            --platform osx-64
           cache-environment: true
           post-cleanup: 'all'
   
