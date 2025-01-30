@@ -20,68 +20,50 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      # - name: Set up Conda env
-      #   uses: mamba-org/setup-micromamba@v2 
-      #   with:
-      #     # generate-run-shell: true
-      #     environment-name: seq-detective
-      #     # channels: conda-forge, bioconda 
-      #     create-args: >-
-      #       meson 
-      #       ninja 
-      #       make 
-      #       gcc 
-      #       time 
-      #       cxx-compiler
-      #       cmake
-      #       gcovr
-      #     # auto-activate-base: false
-      #     cache-environment: true
-      #     post-cleanup: 'all'
       - name: Set up Conda env for Linux
         uses: mamba-org/setup-micromamba@v2
         if: runner.os == 'Linux'
         with:
           # generate-run-shell: true
           environment-name: seq-detective
-          # channels: conda-forge, bioconda
-          create-args: >-
-            meson 
-            ninja 
-            make 
+          environment-file: environment.yml
+          create-args: >- 
             gcc 
-            time 
-            cxx-compiler
             cmake
             gcovr
-          # auto-activate-base: false
-          cache-environment: true
           post-cleanup: 'all'
       
       - name: Set up Conda env for macOS
         uses: mamba-org/setup-micromamba@v2
         if: runner.os == 'macOS'
         with:
-          # generate-run-shell: true
           environment-name: seq-detective
-          # channels: conda-forge, bioconda
+          environment-file: environment.yml
           create-args: >-
-            meson 
-            ninja 
-            make
             clang
-            time 
-            cxx-compiler
             llvm-openmp
             cmake
             gcovr
-          # auto-activate-base: false
-          cache-environment: true
           post-cleanup: 'all'
+      - name: Install sra-tools for macOS
+        if: runner.os == 'macOS'
+        run: | 
+          micromamba run -n seq-detective micromamba install sra-tools -c bioconda --platform osx-64 -y
+      - name: Install sra-tools for Linux 
+        if: runner.os == 'Linux'
+        run: | 
+          micromamba run -n seq-detective micromamba install sra-tools -c bioconda -y
       
-      
- 
+      - name: Install make for macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install make 
+      - name: Install make for Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt install make 
 
+      
       - name: Build
         run: |
            micromamba run -n seq-detective make
