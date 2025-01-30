@@ -44,16 +44,9 @@ jobs:
             llvm-openmp
             cmake
             gcovr
+            --platform osx-64
           post-cleanup: 'all'
-      - name: Install sra-tools for macOS
-        if: runner.os == 'macOS'
-        run: | 
-          micromamba run -n seq-detective micromamba install sra-tools -c bioconda --platform osx-64 -y
-      - name: Install sra-tools for Linux 
-        if: runner.os == 'Linux'
-        run: | 
-          micromamba run -n seq-detective micromamba install sra-tools -c bioconda -y
-      
+
       - name: Install make for macOS
         if: runner.os == 'macOS'
         run: |
