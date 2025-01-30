@@ -12,8 +12,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest","macos-latest"]
-        # ,"macos-latest"]
-        python-version: ["3.9"]
+        python-version: ["3.10"]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Check out repository
@@ -23,52 +22,62 @@ jobs:
         uses: mamba-org/setup-micromamba@v2
         if: runner.os == 'Linux'
         with:
-          # generate-run-shell: true
           environment-name: seq-detective
-          # channels: conda-forge, bioconda
+          environment-file: environment.yml
           create-args: >-
-            meson 
-            ninja 
-            make 
             gcc 
-            time 
-            cxx-compiler
-          # auto-activate-base: false
-          cache-environment: true
+          # cache-environment: true
           post-cleanup: 'all'
       
       - name: Set up Conda env for macOS
         uses: mamba-org/setup-micromamba@v2
         if: runner.os == 'macOS'
         with:
-          # generate-run-shell: true
+          platform: osx-64
           environment-name: seq-detective
-          # channels: conda-forge, bioconda
+          environment-file: environment.yml
           create-args: >-
-            meson 
-            ninja 
-            make
             clang
-            time 
-            cxx-compiler
             llvm-openmp
-          # auto-activate-base: false
-          cache-environment: true
-          post-cleanup: 'all'      
+          # cache-environment: true
+          post-cleanup: 'all'
+     
+      - name: Install sra-tools for macOS
+        if: runner.os == 'macOS'
+        run: | 
+          micromamba run -n seq-detective micromamba install sra-tools -c bioconda --platform osx-64 -y
+      - name: Install sra-tools for Linux 
+        if: runner.os == 'Linux'
+        run: | 
+          micromamba run -n seq-detective micromamba install sra-tools -c bioconda -y
+      
+      - name: Install make for macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install make 
+      - name: Install make for Linux
+        if: runner.os == 'Linux'
+        run: |
+          apt install make 
 
+
+
+          # add brew and apt install make line 
       - name: Verify env 
         run: |
           micromamba run -n seq-detective meson --version
           micromamba run -n seq-detective ninja --version
-          micromamba run -n seq-detective make --version
+          make --version
           micromamba run -n seq-detective gcc --version
           micromamba run -n seq-detective g++ --version
           micromamba run -n seq-detective time --version
-      
+          micromamba run -n seq-detective fasterq-dump --version
       - name: verify libomp is installed
         if: runner.os == 'macOS'
         run: |
           micromamba run -n seq-detective micromamba list | grep openmp
+
+          micromamba run -n seq-detective micromamba list | grep sra-tools
           
       - name: Build
         run: |
@@ -104,7 +113,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest", "macos-latest"]
-        python-version: ["3.9"]
+        python-version: ["3.10"]
     needs: build
     steps:
       - name: Check out repository 
