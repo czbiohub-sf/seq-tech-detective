@@ -142,7 +142,6 @@ jobs:
         with:
           # generate-run-shell: true
           environment-name: seq-detective
-          channels: conda-forge, defaults
           create-args: >-
             time
             llvm-openmp
