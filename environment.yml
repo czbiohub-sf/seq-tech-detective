@@ -2,6 +2,7 @@ name: seq-detective
 channels:
   - conda-forge
   - bioconda
+  - anaconda
 dependencies:
   # remove this before push
   - conda-forge::bc
@@ -13,6 +14,7 @@ dependencies:
   - conda-forge::meson>=1.5.0
   - conda-forge::time=1.9
   - bioconda::seqspec>=0.3.0 
+  - bioconda::sra-tools
   - bioconda::hisat2=2.2.*
   - bioconda::entrez-direct=22.*
   - bioconda::subread
