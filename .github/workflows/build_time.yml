@@ -39,16 +39,6 @@ jobs:
             llvm-openmp
             --platform osx-64
           post-cleanup: 'all'
-     
-      # - name: Install sra-tools for macOS
-      #   if: runner.os == 'macOS'
-      #   run: | 
-      #     micromamba run -n seq-detective micromamba install sra-tools -c bioconda --platform osx-64 -y
-      # - name: Install sra-tools for Linux 
-      #   if: runner.os == 'Linux'
-      #   run: | 
-      #     micromamba run -n seq-detective micromamba install sra-tools -c bioconda -y
-      #
       - name: Install make for macOS
         if: runner.os == 'macOS'
         run: |
@@ -57,8 +47,6 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt install make 
-
-
 
       - name: Verify env 
         run: |
@@ -101,7 +89,6 @@ jobs:
           if-no-files-found: error
           path: |
             *
-      
 
       
   runtime:
@@ -154,8 +141,6 @@ jobs:
             llvm-openmp
             --platform osx-64
           post-cleanup: 'all'
-     
-
         
       - name: ensure GNU time is installed
         run: | 
@@ -180,4 +165,3 @@ jobs:
             echo "-------------------------------------"
             echo ""
           done
-   

@@ -133,7 +133,7 @@ core() {
 	GTF="${3}"
 	OUTFILE="${4:-/dev/stdout}"
 	PRINT_HEADER="${5:-0}"
-	THREADS="${6:-4}"
+	THREADS="${6:-8}"
 	USE_FASTP="${7:-0}"
 	FORMAT="${8:-json}"
 	PRETTY_PRINT="${9:-0}"
