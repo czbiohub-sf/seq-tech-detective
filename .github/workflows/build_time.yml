@@ -26,20 +26,18 @@ jobs:
           environment-file: environment.yml
           create-args: >-
             gcc 
-          # cache-environment: true
           post-cleanup: 'all'
       
       - name: Set up Conda env for macOS
         uses: mamba-org/setup-micromamba@v2
         if: runner.os == 'macOS'
         with:
-          platform: osx-64
+          # platform: osx-64
           environment-name: seq-detective
           environment-file: environment.yml
           create-args: >-
             clang
             llvm-openmp
-          # cache-environment: true
           post-cleanup: 'all'
      
       - name: Install sra-tools for macOS
@@ -145,7 +143,6 @@ jobs:
           create-args: >-
             time
             llvm-openmp
-          auto-activate-base: false
           cache-environment: true
           post-cleanup: 'all'
   
@@ -160,7 +157,7 @@ jobs:
      
       - name: List available test FASTQ files
         run: | 
-          echo "Available FASTQ files in resources/tests/500:"
+          # echo "Available FASTQ files in resources/tests/500:"
           ls -l resources/tests/500/
       - name: Run tool on tests fastqs
         shell: bash -el {0}
