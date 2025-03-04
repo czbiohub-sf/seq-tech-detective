@@ -39,8 +39,8 @@ trap 'cleanup' INT TERM EXIT
 
 # random sleep to avoid overloading the server
 jobc=$(squeue --me -t R -h -O jobid | wc -l)
-echo "sleeping $(( (RANDOM % jobc) / 5 ))" >&2
-sleep $(( (RANDOM % jobc) / 5 ))
+echo "sleeping $(((RANDOM % jobc) / 5))" >&2
+sleep $(((RANDOM % jobc) / 5))
 
 # format a json key-value pair
 # $1: key
@@ -67,7 +67,7 @@ for idx in $(seq "${START}" "${END}"); do
 	# open accession block
 	json="{\"accession\": \"${ACCESSION}\","
 	json="${json}\"readfiles\": [${NL}"
-	files=$(seq-detective-download -X "${READLIMIT}" -c $(( SLURM_CPUS_PER_TASK - 1 )) -b "${ACCESSION}" "${types}")
+	files=$(seq-detective-download -X "${READLIMIT}" -c $((SLURM_CPUS_PER_TASK - 1)) -b "${ACCESSION}" "${types}")
 	first=1
 	for file in ${files}; do
 		# array item per file
@@ -84,7 +84,7 @@ for idx in $(seq "${START}" "${END}"); do
 		json="${json}${NL}]}${NL}"
 	fi
 	flock -x "${JSON_OUT}" printf "%s" "${json}" >>"${JSON_OUT}"
-	echo $(( idx + 1 )) >"${CHECKPOINT}"
+	echo $((idx + 1)) >"${CHECKPOINT}"
 done
 # close json
 #echo "]" >>"${JSON_OUT}"

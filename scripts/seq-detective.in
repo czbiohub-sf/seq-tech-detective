@@ -33,32 +33,55 @@
 #::
 
 set -e
-# index help
 COMMAND="${1}"
 showhelp() {
 	# enable printing when we see #::${1}, disable when we see #::
 	sed -n "/#::${1}/,/#::/{//!{s/#: //p};}" "${BASH_SOURCE-$0}"
 }
 
-PKGDATADIR="@PKGDATADIR@"
-PKGLIBDIR="@PKGLIBDIR@"
-PKGLIBEXECDIR="@PKGLIBEXECDIR@"
-# load in our "module" functions
-. "${PKGLIBEXECDIR}/seq-detective-fingerprint"
-. "${PKGLIBEXECDIR}/seq-detective-map"
+########
+# determine supporting file location
+# where is this script?
+SCRIPTDIR=$(dirname $(readlink -f "${BASH_SOURCE-$0}"))
+if [[ -e "${SCRIPTDIR}/../scripts/seq-detective-map" ]]; then
+	# 1. if we look like a meson build directory, use that
+	PKGBINDIR="${SCRIPTDIR}/"
+	PKGDATADIR="$(readlink -m "${SCRIPTDIR}/../resources")/"
+	PKGLIBDIR="$(readlink -m "${SCRIPTDIR}/../lib")/"
+	PKGLIBEXECDIR="$(readlink -m "${SCRIPTDIR}/../scripts")/"
+elif [[ -e "${SCRIPTDIR}/../libexec/seq-detective/seq-detective-map" ]]; then
+	# 2. if we look like a "release" dir structure not installed, use local file structure
+	PKGBINDIR="${SCRIPTDIR}/"
+	PKGDATADIR="$(readlink -m "${SCRIPTDIR}/../share/seq-detective")/"
+	PKGLIBDIR="$(readlink -m "${SCRIPTDIR}/../lib/seq-detective")/"
+	PKGLIBEXECDIR="$(readlink -m "${SCRIPTDIR}/../libexec/seq-detective")/"
+elif [[ -e "@PKGLIBEXECDIR@/seq-detective-map" ]]; then
+	# 3. finally, try install prefix
+	PKGBINDIR="@PKGBINDIR@/"
+	PKGDATADIR="@PKGDATADIR@/"
+	PKGLIBDIR="@PKGLIBDIR@/"
+	PKGLIBEXECDIR="@PKGLIBEXECDIR@/"
+fi
+PATH="${SCRIPTDIR}:${PKGLIBEXECDIR}:$PATH"
 
-PKGSTATEHOME="${XDG_STATE_HOME:-$HOME/.local/state}/seq-detective"
+PKGSTATEHOME="${XDG_STATE_HOME:-$HOME/.local/state}/seq-detective/"
+
+########
+# load in our "module" functions
+. "${PKGLIBEXECDIR}seq-detective-fingerprint"
+. "${PKGLIBEXECDIR}seq-detective-map"
+
+###############################################################################
 
 parse_named_reference() {
 	set -e
 	shopt -s inherit_errexit
 	name="${2:-${1}}"
-	while IFS='= ' read -r key value
-	do
+	while IFS='= ' read -r key value; do
 		if [[ ! ${key} =~ "(FNA|GTF|HS2)" && -n ${value} ]]; then
-		    export ${key}="${value}"
+			export ${key}="${value}"
 		fi
-	done < "${PKGSTATEHOME}/${name}"
+	done <"${PKGSTATEHOME}/${name}"
 }
 
 index() {
@@ -68,7 +91,7 @@ index() {
 
 	cached="${PKGSTATEHOME}/${name}"
 
-	if [[ -e "${cached}" ]]; then
+	if [[ -f "${cached}" ]]; then
 		parse_named_reference "${name}"
 		if [[ -n "${FNA}" && -n "${GTF}" && -n "${HS2}" ]]; then
 			echo "have existing reference for '${name}'" >&2
@@ -80,9 +103,9 @@ index() {
 			echo "existing reference for '${name}' missing entries; rebuilding" >&2
 			echo "(found FNA:${FNA} && GTF:${GTF} & HISAT2:${HS2})" >&2
 		fi
-    fi
+	fi
 	# download
-	path=$("${PKGLIBEXECDIR}/assembly-search" "${1}")
+	path=$("assembly-search" "${1}")
 	# find important files
 	fastaline=$(grep -e "\.fa\|\.fna\|\.fasta" "${path}/md5sum.txt")
 	read -d '' -r _md5 fna <<<"${fastaline}" || true
@@ -95,9 +118,9 @@ index() {
 	mkdir -p "${PKGSTATEHOME}"
 	# build index
 	echo "building hisat2 index"
-	hs2=$("${PKGLIBEXECDIR}/index-build" "${fna}" "${gtf}" "${3}" "${4}")
+	hs2=$("index-build" "${fna}" "${gtf}" "${3}" "${4}")
 
-	printf "GTF=%s\nFNA=%s\nHS2=%s" "${gtf}" "${fna}" "${hs2}" > "${cached}"
+	printf "GTF=%s\nFNA=%s\nHS2=%s" "${gtf}" "${fna}" "${hs2}" >"${cached}"
 
 	echo "fna: ${fna}"
 	echo "gtf: ${gtf}"
@@ -128,15 +151,13 @@ fingerprint-rough() {
 		{
 			printf "file\t"
 			fingerprint_header "${PRINT_HEADER}"
-			mapping_header "${PRINT_HEADER}" "${USE_FASTP}"
 		} 1>>"${OUTFILE}"
 	fi
 
-	# run seq-detective, hisat2, and featureCounts
+	# run seq-detective-fingerprint
 	{
 		printf "%s\t" "${FASTQ}"
 		fingerprint_main "${FASTQ}" "${OUTFILE}" 0
-		mapping_main "${FASTQ}" "${HISAT2_INDEX}" "${GTF}" "${OUTFILE}" 0 "${HISAT2_THREADS}" "${USE_FASTP}"
 	} 1>>"${OUTFILE}"
 }
 
@@ -204,7 +225,7 @@ case "${COMMAND}" in
 	;;
 "download")
 	shift 1 # shift off subcommand
-	"${PKGLIBEXECDIR}/seq-detective-download" "$@"
+	"seq-detective-download" "$@"
 	;;
 "fingerprint")
 	# file, reference prefix, gtf

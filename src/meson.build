@@ -39,4 +39,5 @@ seq_detective_fp = executable(
     include_directories: inc,
     dependencies: deps,
     install: true,
+    build_by_default: true,
 )

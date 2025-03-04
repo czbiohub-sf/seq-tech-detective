@@ -1,3 +1,4 @@
+option('portable', type: 'boolean', value: true)
 option('ext_specs', type: 'feature', value: 'disabled')
 option('test', type: 'feature', value: 'disabled')
 option('tracy', type: 'feature', value: 'disabled')

@@ -68,7 +68,7 @@ jobs:
         run: |
           # Adjust this command to match your project's build steps
           micromamba run -n seq-detective time -v sh -c '
-          make
+          DESTDIR=seq-detective make
           '
       - name: Archive build artifact for Linux
         uses: actions/upload-artifact@v4
@@ -78,7 +78,7 @@ jobs:
           compression-level: 6
           if-no-files-found: error
           path: |
-            seq-detective
+            build/seq-detective*/
       - name: Archive build artifact for macOS 
         uses: actions/upload-artifact@v4
         if: runner.os == 'macOS'
@@ -87,7 +87,7 @@ jobs:
           compression-level: 6
           if-no-files-found: error
           path: |
-            seq-detective
+            build/seq-detective*/
 
       
   runtime:
@@ -118,7 +118,7 @@ jobs:
   
 
       - name: make binary executable
-        run: chmod +x build/seq-detective-fp
+        run: chmod +x seq-detective/bin/seq-detective-fp
       
       - name: Set up Conda env for Linux
         uses: mamba-org/setup-micromamba@v2
@@ -160,7 +160,7 @@ jobs:
           for file in resources/tests/500/*.fastq; do
             filename=$(echo "${file}"| awk -F/ '{print $5}')  
             echo "=== Running seq-detective on ${file} from ${PWD} ==="
-             micromamba run -n seq-detective time -v build/seq-detective-fp ${file}
+             micromamba run -n seq-detective time -v seq-detective/bin/seq-detective-fp ${file}
             echo "-------------------------------------"
             echo ""
           done
