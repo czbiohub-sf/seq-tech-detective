@@ -1,6 +1,6 @@
 #!/bin/bash
 #::version
-#: seq-detective 0.1.0 (core)
+#: seq-detective @VERSION@ (core)
 #::help
 #: seq-detective
 #: interface for download an SRA accession and call all seq-detective phases
@@ -40,34 +40,72 @@ showhelp() {
 	sed -n "/#::${1}/,/#::/{//!{s/#: //p};}" "${BASH_SOURCE-$0}"
 }
 
-# gnu readlink only
-SCRIPTDIR="$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")"
+PKGDATADIR="@PKGDATADIR@"
+PKGLIBDIR="@PKGLIBDIR@"
+PKGLIBEXECDIR="@PKGLIBEXECDIR@"
 # load in our "module" functions
-. "${SCRIPTDIR}/seq-detective-fingerprint"
-. "${SCRIPTDIR}/seq-detective-map"
+. "${PKGLIBEXECDIR}/seq-detective-fingerprint"
+. "${PKGLIBEXECDIR}/seq-detective-map"
+
+PKGSTATEHOME="${XDG_STATE_HOME:-$HOME/.local/state}/seq-detective"
+
+parse_named_reference() {
+	set -e
+	shopt -s inherit_errexit
+	name="${2:-${1}}"
+	while IFS='= ' read -r key value
+	do
+		if [[ ! ${key} =~ "(FNA|GTF|HS2)" && -n ${value} ]]; then
+		    export ${key}="${value}"
+		fi
+	done < "${PKGSTATEHOME}/${name}"
+}
 
 index() {
 	set -e
 	shopt -s inherit_errexit
+	name="${2:-${1}}"
+
+	cached="${PKGSTATEHOME}/${name}"
+
+	if [[ -e "${cached}" ]]; then
+		parse_named_reference "${name}"
+		if [[ -n "${FNA}" && -n "${GTF}" && -n "${HS2}" ]]; then
+			echo "have existing reference for '${name}'" >&2
+			echo "fna: ${FNA}"
+			echo "gtf: ${GTF}"
+			echo "${HS2}"
+			return 0
+		else
+			echo "existing reference for '${name}' missing entries; rebuilding" >&2
+			echo "(found FNA:${FNA} && GTF:${GTF} & HISAT2:${HS2})" >&2
+		fi
+    fi
 	# download
-	path=$("${SCRIPTDIR}/bin/scripts/assembly-search" "${1}")
+	path=$("${PKGLIBEXECDIR}/assembly-search" "${1}")
 	# find important files
 	fastaline=$(grep -e "\.fa\|\.fna\|\.fasta" "${path}/md5sum.txt")
-	read -d '' -r _md5 fasta <<<"${fastaline}" || true
+	read -d '' -r _md5 fna <<<"${fastaline}" || true
 	gtfline=$(grep -e "\.gtf" "${path}/md5sum.txt")
 	read -d '' -r _md5 gtf <<<"${gtfline}" || true
 
-	echo "fasta: ${fasta}"
-	echo "gtf: ${gtf}"
+	fna="${path}/${fna}"
+	gtf="${path}/${gtf}"
+
+	mkdir -p "${PKGSTATEHOME}"
 	# build index
 	echo "building hisat2 index"
-	"${SCRIPTDIR}/bin/scripts/index-build" "${path}/${fasta}" "${path}/${gtf}"
+	hs2=$("${PKGLIBEXECDIR}/index-build" "${fna}" "${gtf}" "${3}" "${4}")
+
+	printf "GTF=%s\nFNA=%s\nHS2=%s" "${gtf}" "${fna}" "${hs2}" > "${cached}"
+
+	echo "fna: ${fna}"
+	echo "gtf: ${gtf}"
+	echo "${hs2}"
 	return 0
 }
 
 # fingerprint
-# download SRA with fasterq-dump, then call seq-detective and hisat2
-# arguments: SRA accession, reference genome path
 fingerprint() {
 	set -e
 	# TODO
@@ -160,12 +198,13 @@ core() {
 # switch based on COMMAND
 case "${COMMAND}" in
 "index")
-	# reference name (common or accession)
-	index "${2}"
+	shift 1 # shift off subcommand
+	# query, nickname, threads, NOANNOTATIONS
+	index "$@"
 	;;
 "download")
 	shift 1 # shift off subcommand
-	"${SCRIPTDIR}/seq-detective-download" "$@"
+	"${PKGLIBEXECDIR}/seq-detective-download" "$@"
 	;;
 "fingerprint")
 	# file, reference prefix, gtf

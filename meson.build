@@ -9,11 +9,10 @@ project(
         'c_std=gnu23,gnu2x,c23,c2x',
     ],
 )
-exename = 'seq-detective-fp'
-compiler = meson.get_compiler('c')
 
+# C options
+compiler = meson.get_compiler('c')
 proj_args = [
-    '-g3',
     '-Wno-gnu-binary-literal',  # clang-18 bug
 ]
 if get_option('test').enabled()
@@ -27,70 +26,51 @@ if get_option('test').enabled()
 endif
 add_project_arguments(proj_args, language: ['c'])
 
-# dependencies: openmp
+# Dependencies
 openmp_dep = dependency('openmp')
-deps = [openmp_dep]
 
-# conf
-pkgdatadir = join_paths(
-    [get_option('prefix'), get_option('datadir'), meson.project_name()],
-)
+
+# Conf
+datadir     = join_paths(get_option('prefix'), get_option('datadir'))
+bindir      = join_paths(get_option('prefix'), get_option('bindir'))
+libdir      = join_paths(get_option('prefix'), get_option('libdir'))
+libexecdir  = join_paths(get_option('prefix'), get_option('libexecdir'))
+varcachedir = join_paths(get_option('prefix'), get_option('localstatedir'), 'cache')
+varlibdir   = join_paths(get_option('prefix'), get_option('localstatedir'), 'lib')
+pkgdatadir  = join_paths(datadir, meson.project_name())
+pkglibdir   = join_paths(libdir, meson.project_name())
+pkglibexecdir  = join_paths(libexecdir, meson.project_name())
+pkgvarcachedir = join_paths(varcachedir, meson.project_name())
+pkgvarlibdir   = join_paths(varlibdir, meson.project_name())
+
 conf = configuration_data()
 conf.set_quoted('PACKAGE_NAME', meson.project_name())
 conf.set_quoted('VERSION', meson.project_version())
-conf.set_quoted('PKGDATADIR', join_paths(get_option('prefix'), pkgdatadir))
+conf.set_quoted('PKGDATADIR', pkgdatadir)
+conf.set_quoted('PKGLIBDIR', pkglibdir)
+conf.set_quoted('PKGLIBEXECDIR', pkglibexecdir)
+conf.set_quoted('PKGVARCACHEDIR', pkgvarcachedir)
+conf.set_quoted('PKGVARLIBDIR', pkgvarlibdir)
 conf.set10('LOG_USE_COLOR', get_option('log_use_color'))
 if compiler.has_function('posix_fadvise', prefix: '#include <fcntl.h>')
     conf.set10('HAVE_POSIX_FADVISE', true)
 endif
+
 configure_file(output: 'config.h', configuration: conf)
 
-# sources
-lib_src = files(
-    'src/fastq.c',
-    'src/filereader.c',
-    'src/fingerprint_info.c',
-    'src/log.c',  # rxi
-    'src/table_builder.c',
-)
-main_src = files('src/main.c')
-src = [main_src, lib_src]
+# Headers
+config_h_inc = include_directories('.')
+fingerprint_inc = include_directories('include')
+inc = [config_h_inc, fingerprint_inc]
 
-seqdetective_headers = include_directories('.', 'include')
-inc = [seqdetective_headers]
+# Sources
+subdir('src')
 
-# technology fingerprint resources + shared object
+# Technology fingerprint resources + shared object
 subdir('resources')
 
-if get_option('tracy').enabled()
-    exename = 'seq-detective-tracy'
-    tracy_dep = dependency(
-        'tracy',
-        static: true,
-        default_options: ['warning_level=0', 'tracy:no_exit=true'],
-    )
-    deps += [tracy_dep]
-
-    add_project_arguments(['-DTRACY_ENABLE=1'], language: ['c', 'cpp'])
-    add_project_arguments(['-fno-omit-frame-pointer'], language: ['c'])
-    add_project_link_arguments(['-rdynamic', '-lstdc++'], language: ['c'])
-    add_project_link_arguments(['-ldl'], language: ['c', 'cpp'])
-
-    if get_option('buildtype') != 'debugoptimized'
-        warning('Profiling builds should set --buildtype=debugoptimized')
-    endif
-endif
-
-seq_detective_fp = executable(
-    exename,
-    src,
-    gnu_symbol_visibility: 'default',
-    include_directories: inc,
-    dependencies: deps,
-    install: true,
-)
-# supporting scripts
+# Supporting scripts
 subdir('scripts')
 
-
+# Tests
 subdir('tests')
