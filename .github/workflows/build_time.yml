@@ -69,7 +69,6 @@ jobs:
           # Adjust this command to match your project's build steps
           micromamba run -n seq-detective time -v sh -c '
           make
-          meson compile -C build
           '
       - name: Archive build artifact for Linux
         uses: actions/upload-artifact@v4
@@ -79,7 +78,7 @@ jobs:
           compression-level: 6
           if-no-files-found: error
           path: |
-            *
+            seq-detective
       - name: Archive build artifact for macOS 
         uses: actions/upload-artifact@v4
         if: runner.os == 'macOS'
@@ -88,7 +87,7 @@ jobs:
           compression-level: 6
           if-no-files-found: error
           path: |
-            *
+            seq-detective
 
       
   runtime:

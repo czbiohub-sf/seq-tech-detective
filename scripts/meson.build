@@ -37,15 +37,18 @@ foreach script : user_scripts
 endforeach
 
 
-custom_target('copy internal scripts',
-  input : internal_scripts,
-  output :  internal_scripts,
-  command : [SCRIPT_PREPROCESS, '@INPUT@', '@OUTDIR@'],
-  install : true,
-  install_dir : pkglibexecdir,
-  install_mode : 'rwxr-xr-x',
-  install_tag : 'runtime',
-  build_by_default : true)
+foreach script : internal_scripts
+  custom_target(script,
+                input : script + '.in',
+                output :  script,
+                command : [SCRIPT_PREPROCESS, '@INPUT@', '@OUTPUT@'],
+                install : true,
+                install_dir : pkglibexecdir,
+                install_mode : 'rwxr-xr-x',
+                install_tag : 'runtime',
+                build_by_default : true
+               )
+endforeach
 
 # test(
 # 	'seqspec-convert',
