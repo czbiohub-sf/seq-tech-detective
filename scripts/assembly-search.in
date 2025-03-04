@@ -1,0 +1,80 @@
+#!/bin/bash
+
+# Perform a search for a reference genome assembly on NCBI
+# enviroment variable flags:
+#   - FORCE: overwrite existing reference genome
+#   - DRYRUN: print the download location without downloading
+#   - ALLASSEMBLY: list all assemblies, not just latest refseq assembly
+# environment variable options:
+#   - PREFIX: output directory prefix
+
+set -e
+HL_ON=$(tput setaf 3)
+HL_OFF=$(tput sgr0)
+INFO_ON=$(tput setaf 6)
+INFO_OFF=$(tput sgr0)
+ERR_ON=$(tput setaf 1)
+ERR_OFF=$(tput sgr0)
+
+PREFIX="ref"
+QUERY="${1}"
+
+# check if entrez direct is installed
+if [[ ! -x "$(command -v esearch)" ]]; then
+    echo "${ERR_ON}esearch not found: install edirect (entrez-direct)${ERR_OFF}" >&2
+    exit 1
+fi
+EQUERY="(${QUERY} [ORGN] OR ${QUERY} [ALLN]) AND latest_refseq [PROP]"
+if [ -n "${ALLASSEMBLY}" ]; then
+    EQUERY="(${QUERY} [ORGN] OR ${QUERY} [ALLN])"
+fi
+EXTRACT="-pattern DocumentSummary -element LastUpdateDate AssemblyName Organism AssemblyAccession SpeciesName"
+RESP=$(esearch -db assembly -query "${EQUERY}" -retmax 1 -sort relevance | efetch -format docsum | xtract ${EXTRACT})
+IFS=$'\n' read -r -d 'EOF' -a results <<<"${RESP}
+EOF"
+if [ $? -ne 0 ]; then
+    echo "${ERR_ON}NCBI query failed: ${results}${ERR_OFF}" >&2
+    exit 1
+fi
+
+# Determine which result to download (prompt user if multiple results)
+num_results=${#results[@]}
+selection=0
+if [ "$num_results" -eq 0 ]; then
+    echo "${ERR_ON}No results found for ${QUERY}${ERR_OFF}" >&2
+    exit 1
+elif [ "$num_results" -gt 1 ]; then
+    # queries with multiple results (e.g. human or nonspecific ambiguous) present a list of options
+    echo "${INFO_ON}Multiple refseq results found for \"${QUERY}\"${INFO_OFF}" >&2
+    for i in $(seq 0 $((num_results - 1))); do
+        IFS=$'\t' read -r LastUpdateDate AssemblyName Organism AssemblyAccession SpeciesName <<<"${results[$i]}"
+        # link assembly name to NCBI assembly page and color the index numbers
+        assembly_url="https://www.ncbi.nlm.nih.gov/assembly/${AssemblyAccession}"
+        assembly_link=$(printf '\e]8;;%s\e\\%s\e]8;;\e\\' "${assembly_url}" "${AssemblyName}")
+        printf "%s[%d]%s\t%s\t%s\t%s\n" "${HL_ON}" "${i}" "${HL_OFF}" "${LastUpdateDate}" "${assembly_link}" "${Organism}" >&2
+    done
+    read -t 120 -rp "Make a selection (in 120 seconds) [default 0]: " selection
+fi
+IFS=$'\t' read -r LastUpdateDate AssemblyName Organism AssemblyAccession SpeciesName <<<"${results[$selection]}"
+
+# check if reference already exists
+outdir="${PREFIX}/${SpeciesName//[^a-zA-Z0-9.]/-}_${AssemblyName//[^a-zA-Z0-9.]/-}"
+outfile="${outdir}.zip"
+if [[ -e "${outdir}" && -z "${FORCE}" ]]; then
+    echo "${INFO_ON}Assembly already downloaded: ${outdir}${INFO_OFF}" >&2
+    echo "${outdir}"
+    exit 0
+elif [[ -n "${DRYRUN}" ]]; then
+    echo "${INFO_ON}downloading: ${Organism} assembly: ${AssemblyName} (${LastUpdateDate})...${INFO_OFF}" >&2
+    echo "${INFO_ON}dry run done: would have written ${outdir}${INFO_OFF}" >&2
+    exit 0
+fi
+# Download the reference genome + annotation files
+echo "${INFO_ON}downloading ${Organism} assembly: ${AssemblyName} (${LastUpdateDate})...${INFO_OFF}" >&2
+REF_URL="https://api.ncbi.nlm.nih.gov/datasets/v2alpha/genome/accession/"
+REF_PARAMS="download?include_annotation_type=GENOME_FASTA&include_annotation_type=GENOME_GTF"
+mkdir -p "${PREFIX}"
+curl "${REF_URL}${AssemblyAccession}/${REF_PARAMS}" --retry 2 --output "${outfile}" &&
+    unzip -u "${outfile}" -d "${outdir}" 1>&2 &&
+    rm "${outfile}"
+echo "${outdir}"

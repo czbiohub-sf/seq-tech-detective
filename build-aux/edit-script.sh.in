@@ -9,6 +9,7 @@ sed \
   -e "s|@LOG_USE_COLOR[@]|@LOG_USE_COLOR@|g" \
   -e "s|@PACKAGE_NAME[@]|@PACKAGE_NAME@|g" \
   -e "s|@VERSION[@]|@VERSION@|g" \
+  -e "s|@PKGBINDIR[@]|@PKGBINDIR@|g" \
   -e "s|@PKGDATADIR[@]|@PKGDATADIR@|g" \
   -e "s|@PKGLIBDIR[@]|@PKGLIBDIR@|g" \
   -e "s|@PKGLIBEXECDIR[@]|@PKGLIBEXECDIR@|g" \

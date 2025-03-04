@@ -1,12 +1,14 @@
 #include "table_builder.h"
 
 #include <fcntl.h>
+#include <libgen.h>
 #include <limits.h>
 #include <search.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "config.h"
 #include "fingerprint_info.h"
@@ -220,42 +222,65 @@ sd_fp_hits **load_fingerprints(void)
 			// not in cache, create a new fp_hits struct
 			switch (rgn->type) {
 			case SD_ONLIST:
-				snprintf(path, PATH_MX, "%s/%s", PKGDATADIR, rgn->sequence);
-				FILE *onlist_fp = fopen(path, "r");
-				if (onlist_fp == NULL) {
-					log_warn("not found: %s R%d ONLIST %s", fgpts.name, rgn->read, path);
-					continue;
+				// 1. try data dir in local file structure
+				{
+					char exe_path[PATH_MX];
+					readlink("/proc/self/exe", exe_path, PATH_MX);
+					char *exe_dir;
+					exe_dir = dirname(exe_path);
+
+					snprintf(path, PATH_MX, "%s/../share/seq-detective/%s", exe_dir, rgn->sequence);
+					FILE *onlist_fp = fopen(path, "r");
+					if (onlist_fp != NULL)
+						goto found_onlist;
+					// 2. try data dir in build path
+					snprintf(path, PATH_MX, "%s/../resources/%s", exe_dir, rgn->sequence);
+					onlist_fp = fopen(path, "r");
+					if (onlist_fp != NULL)
+						goto found_onlist;
+					// 3. try install prefix PKGDATADIR
+					snprintf(path, PATH_MX, "%s/%s", PKGDATADIR, rgn->sequence);
+					onlist_fp = fopen(path, "r");
+
+					if (onlist_fp == NULL) {
+						log_warn("not found: %s R%d ONLIST %s", fgpts.name, rgn->read, path);
+						continue;
+					}
+
+				found_onlist:
+					// onlist file is valid and new: build table and associate with fingerprint
+					log_info("found: %s R%d ONLIST %s", fgpts.name, rgn->read, rgn->sequence);
+
+#ifdef HAVE_POSIX_FADVISE
+					posix_fadvise(
+						fileno(onlist_fp), 0, 0, POSIX_FADV_SEQUENTIAL | POSIX_FADV_WILLNEED);
+#endif
+					// store the pointer to the newly created table
+					// TODO: build set should generate both fwd and reverse
+					fingerprint_ids[num_fpr] = init_fp_hit(rgn, num_fpr, SD_FWD);
+					fingerprint_ids[num_fpr]->bc_set =
+						build_set(onlist_fp, rgn->len.max * 2, SD_FWD);
+					dbg_log_fp_hit(fingerprint_ids[num_fpr]);
+					++num_fpr;
+					// rewind file for reverse complement table
+					if (fseek(onlist_fp, 0L, SEEK_SET) != 0)
+						log_error("could not rewind bc onlist: %s", path);
+					fingerprint_ids[num_fpr] = init_fp_hit(rgn, num_fpr, SD_REV);
+					fingerprint_ids[num_fpr]->bc_set =
+						build_set(onlist_fp, rgn->len.max * 2, SD_REV);
+					dbg_log_fp_hit(fingerprint_ids[num_fpr]);
+					++num_fpr;
+
+#ifdef HAVE_POSIX_FADVISE
+					posix_fadvise(fileno(onlist_fp), 0, 0, POSIX_FADV_DONTNEED);
+#endif
+					fclose(onlist_fp);
+
+					rgn_seq_entry.key  = (char *)rgn->sequence;
+					rgn_seq_entry.data = fingerprint_ids[num_fpr - 2];
+					hsearch(rgn_seq_entry, ENTER);
+					break;
 				}
-
-				// onlist file is valid and new: build table and associate with fingerprint
-				log_info("found: %s R%d ONLIST %s", fgpts.name, rgn->read, rgn->sequence);
-
-#ifdef HAVE_POSIX_FADVISE
-				posix_fadvise(fileno(onlist_fp), 0, 0, POSIX_FADV_SEQUENTIAL | POSIX_FADV_WILLNEED);
-#endif
-				// store the pointer to the newly created table
-				// TODO: build set should generate both fwd and reverse
-				fingerprint_ids[num_fpr]         = init_fp_hit(rgn, num_fpr, SD_FWD);
-				fingerprint_ids[num_fpr]->bc_set = build_set(onlist_fp, rgn->len.max * 2, SD_FWD);
-				dbg_log_fp_hit(fingerprint_ids[num_fpr]);
-				++num_fpr;
-				// rewind file for reverse complement table
-				if (fseek(onlist_fp, 0L, SEEK_SET) != 0)
-					log_error("could not rewind bc onlist: %s", path);
-				fingerprint_ids[num_fpr]         = init_fp_hit(rgn, num_fpr, SD_REV);
-				fingerprint_ids[num_fpr]->bc_set = build_set(onlist_fp, rgn->len.max * 2, SD_REV);
-				dbg_log_fp_hit(fingerprint_ids[num_fpr]);
-				++num_fpr;
-
-#ifdef HAVE_POSIX_FADVISE
-				posix_fadvise(fileno(onlist_fp), 0, 0, POSIX_FADV_DONTNEED);
-#endif
-				fclose(onlist_fp);
-
-				rgn_seq_entry.key  = (char *)rgn->sequence;
-				rgn_seq_entry.data = fingerprint_ids[num_fpr - 2];
-				hsearch(rgn_seq_entry, ENTER);
-				break;
 			case SD_FIXED:
 				log_info("found: %s R%d FIXED %s", fgpts.name, rgn->read, rgn->sequence);
 				int seq_len = strlen(rgn->sequence);

@@ -2,6 +2,7 @@
 
 # module for running seq-detective fingerprint phase
 
+set -e
 SCRIPTDIR="$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")"
 
 sum() {
@@ -28,7 +29,7 @@ fingerprint_header() {
 	if [[ "${PRINT_HEADER}" -eq 1 ]]; then
 		printf "spots\treadlen\t"
 		printf "10x_v2\t10x_v2_rc\t10x_v3\t10x_v3_rc\t"
-		printf "fp_indrop_bc1\tfp_indrop_bc1_rc\tfp_indrop_link\tfp_indrop_link_rc\tfp_indrop_bc2\tfp_indrop_bc2_rc\t"
+		printf "fp_indrop_bc1\tfp_indrop_bc1_rc\tfp_indrop_link\tfp_indrop_link_rc\tfp_indrop_bc2\tfp_indrop_bc2_rc\n"
 	fi
 }
 
@@ -42,8 +43,8 @@ parse_fingerprint() {
 	# 10x
 	fp_10x_v2=$(fp_hit_rate "${file}" "cb_10x_737K-august-2016.txt" "${reads}")
 	fp_10x_v2_rc=$(fp_hit_rate "${file}" "cb_10x_737K-august-2016.txt_RC" "${reads}")
-	fp_10x_v3=$(fp_hit_rate "${file}" "cb_10x_737K-august-2016_v3.txt" "${reads}")
-	fp_10x_v3_rc=$(fp_hit_rate "${file}" "cb_10x_737K-august-2016_v3.txt_RC" "${reads}")
+	#fp_10x_v3=$(fp_hit_rate "${file}" "cb_10x_737K-august-2016_v3.txt" "${reads}")
+	#fp_10x_v3_rc=$(fp_hit_rate "${file}" "cb_10x_737K-august-2016_v3.txt_RC" "${reads}")
 	# indrop
 	fp_indrop_bc1=$(fp_hit_rate "${file}" "cb_indrop_bc1.txt" "${reads}")
 	fp_indrop_bc1_rc=$(fp_hit_rate "${file}" "cb_indrop_bc1.txt_RC" "${reads}")
@@ -55,7 +56,7 @@ parse_fingerprint() {
 	{
 		printf "%d\t%d\t" "${reads}" "${avglen}"
 		printf "%.5f\t%.5f\t%.5f\t%.5f\t" "${fp_10x_v2}" "${fp_10x_v2_rc}" "${fp_10x_v3}" "${fp_10x_v3_rc}"
-		printf "%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t" "${fp_indrop_bc1}" "${fp_indrop_bc1_rc}" "${fp_indrop_link}" "${fp_indrop_link_rc}" "${fp_indrop_bc2}" "${fp_indrop_bc2_rc}"
+		printf "%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\n" "${fp_indrop_bc1}" "${fp_indrop_bc1_rc}" "${fp_indrop_link}" "${fp_indrop_link_rc}" "${fp_indrop_bc2}" "${fp_indrop_bc2_rc}"
 	}
 }
 
@@ -70,7 +71,7 @@ fingerprint_main() {
 	fingerprintfile="${FASTQ}.fingerprint"
 
 	# run sd
-	"${SCRIPTDIR}/bin/seq-detective-fp" "${1}" "${SD_PARAMS}" 1>"${fingerprintfile}"
+	"seq-detective-fp" "${1}" "${SD_PARAMS}" 1>"${fingerprintfile}"
 
 	fingerprint_header "${PRINT_HEADER}" 1>>"${OUTFILE}"
 	# mapping summary variables

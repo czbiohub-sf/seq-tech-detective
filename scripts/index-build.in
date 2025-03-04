@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -ex
 HL_ON=$(tput setaf 3)
 HL_OFF=$(tput sgr0)
 INFO_ON=$(tput setaf 6)
@@ -10,8 +10,8 @@ ERR_OFF=$(tput sgr0)
 
 FASTA="${1}"
 GTF="${2}"
-NUMTHREADS=8
-NOANNOTATIONS=1
+NUMTHREADS="${3:-4}"
+NOANNOTATIONS="${4:-0}"
 NAME="${FASTA##*/}"
 NAME="ref/hisat2-index/${NAME%.*}"
 mkdir -p ref/hisat2-index
@@ -28,5 +28,6 @@ else
 	hisat2_extract_splice_sites.py "${GTF}" >genome.ss
 	hisat2_extract_exons.py "${GTF}" >genome.exon
 	hisat2-build ${HISAT_PARAMS} --exon genome.exon --ss genome.ss "${FASTA}" "${NAME}"
+	rm genome.ss genome.exon
 fi
 echo "${NAME}"

@@ -111,12 +111,16 @@ samdumpwithlimit() {
 			[[ -e "${FASTQXTEMP}" ]] && single_lines_2=$(wc -l "${FASTQXTEMP}" | cut -d' ' -f1)
 			if [[ "${single_lines_2}" -ge "${single_lines}" ]]; then
 				single_lines="${single_lines_2}"
-				head -n "${LIMIT}" "${FASTQXTEMP}" >"${ACC}.fastq" & head0pid=$!
+				head -n "${LIMIT}" "${FASTQXTEMP}" >"${ACC}.fastq" &
+				head0pid=$!
 			else
-				head -n "${LIMIT}" "${FASTQ0TEMP}" >"${ACC}.fastq" & head0pid=$!
+				head -n "${LIMIT}" "${FASTQ0TEMP}" >"${ACC}.fastq" &
+				head0pid=$!
 			fi
-			head -n "${LIMIT}" "${FASTQ1TEMP}" >"${ACC}_1.fastq" & head1pid=$!
-			head -n "${LIMIT}" "${FASTQ2TEMP}" >"${ACC}_2.fastq" & head2pid=$!
+			head -n "${LIMIT}" "${FASTQ1TEMP}" >"${ACC}_1.fastq" &
+			head1pid=$!
+			head -n "${LIMIT}" "${FASTQ2TEMP}" >"${ACC}_2.fastq" &
+			head2pid=$!
 			wait "${head0pid}" "${head1pid}" "${head2pid}"
 			break
 		fi
