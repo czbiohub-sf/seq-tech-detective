@@ -1,66 +1,51 @@
 # supporting scripts
-fs.copyfile(
-    'safe-exec.sh',
-    'safe-exec.sh',
-    install: true,
-    install_dir: 'bin/scripts',
-)
-fs.copyfile(
-    'seqspec2detective.py',
-    'seqspec2detective.py',
-    install: true,
-    install_dir: 'bin/scripts',
-)
-fs.copyfile(
-    'zebrafish-metadata.sh',
-    'scan-species.sh',
-    install: true,
-    install_dir: 'bin/scripts',
-)
-fs.copyfile(
-    'metadata-annotate.py',
-    'metadata-annotate.py',
-    install: true,
-    install_dir: 'bin/scripts',
-)
-fs.copyfile(
-    'assembly-search',
-    'assembly-search',
-    install: true,
-    install_dir: 'bin/scripts',
-)
-fs.copyfile(
-    'index-build',
-    'index-build',
-    install: true,
-    install_dir: 'bin/scripts',
-)
-fs.copyfile(
-    'test-scan-slurm.sh',
-    'scan-slurm.sh',
-    install: true,
-    install_dir: 'bin/scripts',
-)
 
-fs.copyfile(
-    'seq-detective-fingerprint',
-    'seq-detective-fingerprint',
-    install: true,
-    install_dir: '.',
-)
-fs.copyfile(
-    'seq-detective-download',
-    'seq-detective-download',
-    install: true,
-    install_dir: '.',
-)
-fs.copyfile(
-    'seq-detective-map',
-    'seq-detective-map',
-    install: true,
-    install_dir: '.',
-)
-fs.copyfile('seq-detective', 'seq-detective', install: true, install_dir: '.')
+# safe-exec.sh
+# seqspec2detective.py
+# metadata-annotate.py
+user_scripts = [
+  'seq-detective'
+]
+
+# zebrafish-metadata.sh
+# scan-slurm.sh
+internal_scripts = [
+  'index-build',
+  'assembly-search',
+  'seq-detective-download',
+  'seq-detective-fingerprint',
+  'seq-detective-map',
+]
+
+
+SCRIPT_PREPROCESS = find_program(configure_file(
+  input : join_paths(meson.project_source_root(), 'build-aux/edit-script.sh.in'),
+  output : 'edit-script.sh',
+  configuration : conf))
+
+foreach script : user_scripts
+  custom_target(script,
+                input : script + '.in',
+                output : script,
+                command : [SCRIPT_PREPROCESS, '@INPUT@', '@OUTPUT@'],
+                install : true,
+                install_dir : bindir,
+                install_mode : 'rwxr-xr-x',
+                install_tag : 'runtime',
+                build_by_default : true
+               )  
+endforeach
+
+
+custom_target('copy internal scripts',
+  input : internal_scripts,
+  output :  internal_scripts,
+  command : [SCRIPT_PREPROCESS, '@INPUT@', '@OUTDIR@'],
+  install : true,
+  install_dir : pkglibexecdir,
+  install_mode : 'rwxr-xr-x',
+  install_tag : 'runtime',
+  build_by_default : true)
 
 # test(
 # 	'seqspec-convert',
