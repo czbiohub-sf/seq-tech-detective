@@ -15,7 +15,7 @@ OUTDIR=${2:-intermediate}
 ## for attributes was -tab ";" -sep ":" and first changed to -tab ";" -sep "|"  but need to correct to -tab "|" -sep ":" 
 
 # RUN
-xtract -input "${METADATAXML}" -head "run_accession\trun_alias\ttrun_experiment\tpool_member\ttotal_spots\ttotal_bases\ttrun_published_date\ttrun_title\trun_spot_descriptor\ttrun_processing\trun_read:length\trun_base:count\trun_SRAFile_date\trun_filename\trun_semantic_name\trun_attributes" \
+xtract -input "${METADATAXML}" -head "run_accession\trun_alias\ttrun_experiment\tpool_member\ttotal_spots\ttotal_bases\ttrun_published_date\ttrun_title\trun_spot_descriptor\ttrun_processing\trun_read:length\trun_base:count\trun_SRAFile_date\trun_filename\trun_semantic_name\trun_attributes\trun_enafirstpublic_date" \
 	-pattern RUN -def "NA" -tab "\t" -sep ";" \
 	-element RUN@accession RUN@alias \
 	-element EXPERIMENT_REF@accession Pool/Member@accession \
@@ -33,6 +33,7 @@ xtract -input "${METADATAXML}" -head "run_accession\trun_alias\ttrun_experiment\
 	-group RUN -unless SRAFiles/SRAFile@supertype -equals "Original" -lbl "NA" \
 	-group RUN_ATTRIBUTES -deq "\t" -unit RUN_ATTRIBUTE -tab "|" -sep ":" -element TAG,VALUE \
 	-group RUN -unless RUN_ATTRIBUTE -deq "\t" -lbl "NA" \
+	-group RUN_ATTRIBUTES -deq "\t" -unit RUN_ATTRIBUTE -if RUN_ATTRIBUTE/TAG -equals "ENA-FIRST-PUBLIC" -element VALUE \
 	>"${OUTDIR}/all_zf_metadata_run.tsv"
 
 # EXPERIMENT
@@ -59,16 +60,17 @@ xtract -input "${METADATAXML}" -self -head "sample\tsample_alias\tsample_title\t
 	-element TITLE \
 	-element DESCRIPTION \
 	-group SAMPLE_ATTRIBUTES -deq "\t" -unit SAMPLE_ATTRIBUTE -tab "|" -sep ":" -element TAG,VALUE \
+	-group SAMPLE -unless SAMPLE_ATTRIBUTE -deq "\t" -lbl "NA" \
 	>"${OUTDIR}/all_zf_metadata_sample.tsv"
 
 # STUDY
-xtract -input "${METADATAXML}" -self -head "study_accession\tstudy_alias\tstudy_title\tstudy_type\tstudy_type_other\tstudy_abstract\tstudy_links\tstudy_attributes" \
+xtract -input "${METADATAXML}" -self -head "study_accession\tstudy_alias\tstudy_title\tstudy_type\tstudy_type_other\tstudy_abstract\tstudy_attributes\tstudy_PMIDs" \
 	-pattern STUDY -def "NA" \
 	-element STUDY@accession STUDY@alias \
 	-group DESCRIPTOR -def "NA" -element STUDY_TITLE STUDY_TYPE@existing_study_type STUDY_TYPE@new_study_type STUDY_ABSTRACT \
-	-group STUDY_LINKS -deq "\t" -unit XREF_LINK -tab ";" -sep ":" -element DB,ID \
-	-group STUDY -unless STUDY_LINKS/XREF_LINK -lbl "NA" \
 	-group STUDY_ATTRIBUTES -deq "\t" -unit STUDY_ATTRIBUTE -tab "|" -sep ":" -element TAG,VALUE \
+	-group STUDY -unless STUDY_ATTRIBUTE -deq "\t" -lbl "NA" \
+	-group STUDY_LINKS -deq "\t" -unit XREF_LINK -tab ";" -sep ":" -element DB,ID \
 	>"${OUTDIR}/all_zf_metadata_study.tsv"
  
 # ALSO 'ROSETTA' xtract COMMANDS
