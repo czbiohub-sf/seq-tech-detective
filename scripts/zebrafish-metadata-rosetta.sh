@@ -31,8 +31,27 @@ xtract -input "${METADATAXML}" -self -head "study_accession\tbioproject\tbioproj
 
 
 ## study info
-xtract -input "${METADATAXML}" -self -head "study_accession\tstudy_alias\tstudy_title\tstudy_type\tstudy_type_other\tstudy_abstract\tstudy_links\tstudy_attributes" -pattern STUDY -def "NA" -element STUDY@accession STUDY@alias -group DESCRIPTOR -def "NA" -element STUDY_TITLE STUDY_TYPE@existing_study_type STUDY_TYPE@new_study_type STUDY_ABSTRACT -group STUDY_LINKS -deq "\t" -unit XREF_LINK -tab ";" -sep ":" -element DB,ID -group STUDY -unless STUDY_LINKS/XREF_LINK -lbl "NA" -group STUDY_ATTRIBUTES -deq "\t" -unit STUDY_ATTRIBUTE -tab ";" -sep ":" -element TAG,VALUE -group STUDY -unless STUDY_ATTRIBUTE -deq "\t" -lbl "NA" >"${OUTDIR}/all_zf_studies_to_GSEids.tsv"
+## study info - JUST USE all_zf_metadata_study.tsv and not all_zf_studies_to_GSEids
+
+# xtract -input "${METADATAXML}" -self -head "study_accession\tstudy_alias\tstudy_title\tstudy_type\tstudy_type_other\tstudy_abstract\tstudy_links\tstudy_attributes"  \
+# -pattern STUDY -def "NA"  \
+# -element STUDY@accession STUDY@alias  \
+# -group DESCRIPTOR -def "NA" -element STUDY_TITLE STUDY_TYPE@existing_study_type STUDY_TYPE@new_study_type STUDY_ABSTRACT  \
+# -group STUDY_LINKS -deq "\t" -unit XREF_LINK -tab ";" -sep ":" -element DB,ID  \
+# -group STUDY -unless STUDY_LINKS/XREF_LINK -lbl "NA"  \
+# -group STUDY_ATTRIBUTES -deq "\t" -unit STUDY_ATTRIBUTE -tab ";" -sep ":" -element TAG,VALUE  \
+# -group STUDY -unless STUDY_ATTRIBUTE -deq "\t" -lbl "NA" >"${OUTDIR}/all_zf_studies_to_GSEids.tsv"
 #all_zf_studies_to_GSEids
+
+
+# xtract -input "${METADATAXML}" -self -head "study_accession\tstudy_alias\tstudy_title\tstudy_type\tstudy_type_other\tstudy_abstract\tstudy_attributes\tstudy_PMIDs" \
+# -pattern STUDY -def "NA" \
+# -element STUDY@accession STUDY@alias \
+# -group DESCRIPTOR -def "NA" -element STUDY_TITLE STUDY_TYPE@existing_study_type STUDY_TYPE@new_study_type STUDY_ABSTRACT \
+# -group STUDY_ATTRIBUTES -deq "\t" -unit STUDY_ATTRIBUTE -tab "|" -sep ":" -element TAG,VALUE \
+# -group STUDY -unless STUDY_ATTRIBUTE -deq "\t" -lbl "NA" \
+# -group STUDY_LINKS -deq "\t" -unit XREF_LINK -tab ";" -sep ":" -element DB,ID \
+# >"${OUTDIR}/all_zf_metadata_study.tsv"
 
 
 ## just run accession and alias
