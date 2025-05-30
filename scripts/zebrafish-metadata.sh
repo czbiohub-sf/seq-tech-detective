@@ -12,10 +12,10 @@ OUTDIR=${2:-intermediate}
 
 # xtract: whenever we change the tab format for key-value. we need to use -deq on the next output
 # to eat a queuead field separator
+## for attributes was -tab ";" -sep ":" and first changed to -tab ";" -sep "|"  but need to correct to -tab "|" -sep ":" 
 
 # RUN
-xtract -input "${METADATAXML}" -head "run_accession\trun_alias\ttrun_experiment\tpool_member\ttotal_spots\ttotal_bases\ttrun_published_date\ttrun_title\tspot_descriptor\ttrun_processing\tread:length\tbase:count\trun_SRAFile_date\tfilename\tsemantic_name\trun_attributes" \
-	-pattern RUN -def "NA" -tab "\t" -sep ";" \
+xtract -input "${METADATAXML}" -head "run_accession\trun_alias\ttrun_experiment\tpool_member\ttotal_spots\ttotal_bases\ttrun_published_date\ttrun_title\trun_spot_descriptor\ttrun_processing\trun_read:length\trun_base:count\trun_SRAFile_date\trun_filename\trun_semantic_name\trun_attributes" \
 	-pattern RUN -def "NA" -tab "\t" -sep ";" \
 	-element RUN@accession RUN@alias \
 	-element EXPERIMENT_REF@accession Pool/Member@accession \
@@ -25,18 +25,18 @@ xtract -input "${METADATAXML}" -head "run_accession\trun_alias\ttrun_experiment\
 	-group RUN -unless Statistics/Read@index -lbl "NA" \
 	-group Bases -deq "\t" -unit Base -if Bases/Base@value -tab ";" -sep ":" -element @value,@count \
 	-group RUN -unless Bases/Base@value -deq "\t" -lbl "NA" \
-	-group SRAFiles -first SRAFile@date \
+	-group SRAFiles -deq "\t" -first SRAFile@date \
 	-group RUN -unless SRAFiles/SRAFile@date -deq "\t" -lbl "NA" \
 	-group SRAFiles -deq "\t" -unit SRAFile -if SRAFile@supertype -equals "Original" -tab " " -element @filename \
 	-group RUN -unless SRAFiles/SRAFile@supertype -equals "Original" -lbl "NA" \
 	-group SRAFiles -deq "\t" -unit SRAFile -if SRAFile@supertype -equals "Original" -tab " " -element @semantic_name \
 	-group RUN -unless SRAFiles/SRAFile@supertype -equals "Original" -lbl "NA" \
-	-group RUN_ATTRIBUTES -deq "\t" -unit RUN_ATTRIBUTE -tab ";" -sep "|" -element TAG,VALUE \
+	-group RUN_ATTRIBUTES -deq "\t" -unit RUN_ATTRIBUTE -tab "|" -sep ":" -element TAG,VALUE \
 	-group RUN -unless RUN_ATTRIBUTE -deq "\t" -lbl "NA" \
 	>"${OUTDIR}/all_zf_metadata_run.tsv"
 
 # EXPERIMENT
-xtract -input "${METADATAXML}" -self head "experiment\texperiment_alias\tstudy_ref\texperiment_title\texperiment_design_description\texperiment_library_name\texperiment_library_strategy\texperiment_library_source\texperiment_library_selection\texperiment_library_construction_protocol\texperiment_library_layout\texperiment_library_layout_tag\texperiment_platform\texperiment_instrument_model\texperiment_spot_descriptor\texperiment_attributes" \
+xtract -input "${METADATAXML}" -self -head "experiment\texperiment_alias\tstudy_ref\texperiment_title\texperiment_design_description\texperiment_library_name\texperiment_library_strategy\texperiment_library_source\texperiment_library_selection\texperiment_library_construction_protocol\texperiment_library_layout\texperiment_platform\texperiment_instrument_model\texperiment_spot_descriptor\texperiment_attributes" \
 	-pattern EXPERIMENT -def "NA" \
 	-element EXPERIMENT@accession EXPERIMENT@alias \
 	-element STUDY_REF@accession \
@@ -47,8 +47,9 @@ xtract -input "${METADATAXML}" -self head "experiment\texperiment_alias\tstudy_r
 	-block LIBRARY_LAYOUT/* -element ? \
 	-group PLATFORM/* -element ? -element INSTRUMENT_MODEL \
 	-group SPOT_DESCRIPTOR -element */? \
-	-group EXPERIMENT -unless SPOT_DESCRIPTOR -lbl "NA" \
-	-group EXPERIMENT_ATTRIBUTES -deq "\t" -unit EXPERIMENT_ATTRIBUTE -tab ";" -sep "|" -element TAG,VALUE \
+	-group EXPERIMENT -unless SPOT_DESCRIPTOR -deq "\t" -lbl "NA" \
+	-group EXPERIMENT_ATTRIBUTES -deq "\t" -unit EXPERIMENT_ATTRIBUTE -tab "|" -sep ":" -element TAG,VALUE \
+	-group EXPERIMENT -unless EXPERIMENT_ATTRIBUTE -deq "\t" -lbl "NA" \
 	>"${OUTDIR}/all_zf_metadata_experiment.tsv"
 
 # SAMPLE
@@ -57,7 +58,7 @@ xtract -input "${METADATAXML}" -self -head "sample\tsample_alias\tsample_title\t
 	-element SAMPLE@accession SAMPLE@alias \
 	-element TITLE \
 	-element DESCRIPTION \
-	-group SAMPLE_ATTRIBUTES -deq "\t" -unit SAMPLE_ATTRIBUTE -tab ";" -sep "|" -element TAG,VALUE \
+	-group SAMPLE_ATTRIBUTES -deq "\t" -unit SAMPLE_ATTRIBUTE -tab "|" -sep ":" -element TAG,VALUE \
 	>"${OUTDIR}/all_zf_metadata_sample.tsv"
 
 # STUDY
@@ -67,7 +68,7 @@ xtract -input "${METADATAXML}" -self -head "study_accession\tstudy_alias\tstudy_
 	-group DESCRIPTOR -def "NA" -element STUDY_TITLE STUDY_TYPE@existing_study_type STUDY_TYPE@new_study_type STUDY_ABSTRACT \
 	-group STUDY_LINKS -deq "\t" -unit XREF_LINK -tab ";" -sep ":" -element DB,ID \
 	-group STUDY -unless STUDY_LINKS/XREF_LINK -lbl "NA" \
-	-group STUDY_ATTRIBUTES -deq "\t" -unit STUDY_ATTRIBUTE -tab ";" -sep "|" -element TAG,VALUE \
+	-group STUDY_ATTRIBUTES -deq "\t" -unit STUDY_ATTRIBUTE -tab "|" -sep ":" -element TAG,VALUE \
 	>"${OUTDIR}/all_zf_metadata_study.tsv"
  
 # ALSO 'ROSETTA' xtract COMMANDS
