@@ -15,7 +15,7 @@ OUTDIR=${2:-intermediate}
 ## for attributes was -tab ";" -sep ":" and first changed to -tab ";" -sep "|"  but need to correct to -tab "|" -sep ":" 
 
 # RUN
-xtract -input "${METADATAXML}" -head "run_accession\trun_alias\trun_experiment\tpool_member\ttotal_spots\ttotal_bases\trun_published_date\trun_title\trun_spot_descriptor\trun_processing\trun_read:length\trun_base:count\trun_SRAFile_date\trun_lastSRAFile_date\trun_filename\trun_semantic_name\trun_attributes\trun_enafirstpublic_date" \
+xtract -input "${METADATAXML}" -head "run_accession\trun_alias\trun_experiment\tpool_member\ttotal_spots\ttotal_bases\trun_published_date\trun_title\trun_spot_descriptor\trun_processing\trun_read:length\trun_base:count\trun_SRAFile_date\trun_lastSRAFile_date\trun_filename\trun_semantic_name\trun_attributes\trun_enafirstpublic_date\trun_enalastupdate_date" \
 	-pattern RUN -def "NA" -tab "\t" -sep ";" \
 	-element RUN@accession RUN@alias \
 	-element EXPERIMENT_REF@accession Pool/Member@accession \
@@ -37,6 +37,8 @@ xtract -input "${METADATAXML}" -head "run_accession\trun_alias\trun_experiment\t
 	-group RUN -unless RUN_ATTRIBUTE -deq "\t" -lbl "NA" \
 	-group RUN_ATTRIBUTES -deq "\t" -unit RUN_ATTRIBUTE -if RUN_ATTRIBUTE/TAG -equals "ENA-FIRST-PUBLIC" -element VALUE \
 	-group RUN -unless RUN_ATTRIBUTE/TAG -equals "ENA-FIRST-PUBLIC" -lbl "NA" \
+	-group RUN_ATTRIBUTES -deq "\t" -unit RUN_ATTRIBUTE -if RUN_ATTRIBUTE/TAG -equals "ENA-LAST-UPDATE" -element VALUE \
+	-group RUN -unless RUN_ATTRIBUTE/TAG -equals "ENA-LAST-UPDATE" -lbl "NA" \
 	>"${OUTDIR}/all_zf_metadata_run.tsv"
 
 # EXPERIMENT
@@ -58,8 +60,8 @@ xtract -input "${METADATAXML}" -self -head "experiment\texperiment_alias\tstudy_
 	-group EXPERIMENT -unless EXPERIMENT_ATTRIBUTE/TAG -equals "ENA-FIRST-PUBLIC" -lbl "NA" \
 	>"${OUTDIR}/all_zf_metadata_experiment.tsv"
 
-# SAMPLE
-xtract -input "${METADATAXML}" -self -head "sample\tsample_alias\tsample_title\tsample_description\tsample_attributes\tsample_enafirstpublic_date\tsample_enalastupdate_date\tsample_centername" \
+# SAMPLE ENA first public ENA last update
+xtract -input "${METADATAXML}" -self -head "sample\tsample_alias\tsample_title\tsample_description\tsample_attributes\tsample_enafirstpublic_date\tsample_enalastupdate_date\tsample_enafirstpublic2_date\tsample_enalastupdate2_date\tsample_insdclastupdate_date\tsample_insdcfirstpublic_date\tsample_centername" \
 	-pattern SAMPLE -def "NA" \
 	-element SAMPLE@accession SAMPLE@alias \
 	-element TITLE \
@@ -70,12 +72,20 @@ xtract -input "${METADATAXML}" -self -head "sample\tsample_alias\tsample_title\t
 	-group SAMPLE -unless SAMPLE_ATTRIBUTE/TAG -equals "ENA-FIRST-PUBLIC" -lbl "NA" \
 	-group SAMPLE_ATTRIBUTES -deq "\t" -unit SAMPLE_ATTRIBUTE -if SAMPLE_ATTRIBUTE/TAG -equals "ENA-LAST-UPDATE" -element VALUE \
 	-group SAMPLE -unless SAMPLE_ATTRIBUTE/TAG -equals "ENA-LAST-UPDATE" -lbl "NA" \
+	-group SAMPLE_ATTRIBUTES -deq "\t" -unit SAMPLE_ATTRIBUTE -if SAMPLE_ATTRIBUTE/TAG -equals "ENA first public" -element VALUE \
+	-group SAMPLE -unless SAMPLE_ATTRIBUTE/TAG -equals "ENA first public" -lbl "NA" \
+	-group SAMPLE_ATTRIBUTES -deq "\t" -unit SAMPLE_ATTRIBUTE -if SAMPLE_ATTRIBUTE/TAG -equals "ENA last update" -element VALUE \
+	-group SAMPLE -unless SAMPLE_ATTRIBUTE/TAG -equals "ENA last update" -lbl "NA" \
+	-group SAMPLE_ATTRIBUTES -deq "\t" -unit SAMPLE_ATTRIBUTE -if SAMPLE_ATTRIBUTE/TAG -equals "INSDC last update" -element VALUE \
+	-group SAMPLE -unless SAMPLE_ATTRIBUTE/TAG -equals "INSDC last update" -lbl "NA" \
+	-group SAMPLE_ATTRIBUTES -deq "\t" -unit SAMPLE_ATTRIBUTE -if SAMPLE_ATTRIBUTE/TAG -equals "INSDC first public" -element VALUE \
+	-group SAMPLE -unless SAMPLE_ATTRIBUTE/TAG -equals "INSDC first public" -lbl "NA" \
 	-group SAMPLE_ATTRIBUTES -deq "\t" -unit SAMPLE_ATTRIBUTE -if SAMPLE_ATTRIBUTE/TAG -equals "INSDC center name" -element VALUE \
 	-group SAMPLE -unless SAMPLE_ATTRIBUTE/TAG -equals "INSDC center name" -lbl "NA" \
 	>"${OUTDIR}/all_zf_metadata_sample.tsv"
 
 # STUDY
-xtract -input "${METADATAXML}" -self -head "study_accession\tstudy_alias\tstudy_title\tstudy_type\tstudy_type_other\tstudy_abstract\tstudy_attributes\tstudy_enafirstpublic_date\tstudy_PMIDs" \
+xtract -input "${METADATAXML}" -self -head "study_accession\tstudy_alias\tstudy_title\tstudy_type\tstudy_type_other\tstudy_abstract\tstudy_attributes\tstudy_enafirstpublic_date\tstudy_enalastupdate_date\tstudy_PMIDs" \
 	-pattern STUDY -def "NA" \
 	-element STUDY@accession STUDY@alias \
 	-group DESCRIPTOR -def "NA" -element STUDY_TITLE STUDY_TYPE@existing_study_type STUDY_TYPE@new_study_type STUDY_ABSTRACT \
@@ -83,6 +93,8 @@ xtract -input "${METADATAXML}" -self -head "study_accession\tstudy_alias\tstudy_
 	-group STUDY -unless STUDY_ATTRIBUTE -deq "\t" -lbl "NA" \
 	-group STUDY_ATTRIBUTES -deq "\t" -unit STUDY_ATTRIBUTE -if STUDY_ATTRIBUTE/TAG -equals "ENA-FIRST-PUBLIC" -element VALUE \
 	-group STUDY -unless STUDY_ATTRIBUTE/TAG -equals "ENA-FIRST-PUBLIC" -lbl "NA" \
+	-group STUDY_ATTRIBUTES -deq "\t" -unit STUDY_ATTRIBUTE -if STUDY_ATTRIBUTE/TAG -equals "ENA-LAST-UPDATE" -element VALUE \
+	-group STUDY -unless STUDY_ATTRIBUTE/TAG -equals "ENA-LAST-UPDATEC" -lbl "NA" \
 	-group STUDY_LINKS -deq "\t" -unit XREF_LINK -tab ";" -sep ":" -element DB,ID \
 	>"${OUTDIR}/all_zf_metadata_study.tsv"
  
