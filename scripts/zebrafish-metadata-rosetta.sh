@@ -17,8 +17,8 @@ OUTDIR=${2:-intermediate}
 ## THE FOLLOWING SCRIPT IS TO PULL FIELDS TO CREATE A 'ROSETTA' KEY FILE TO LINK RUNS, EXPERIMENTS, SAMPLES, STUDIES, BIORPOJECTS, AND GEO IDS
 
 xtract -input "${METADATAXML}" -self -head "run_accession\tstudy_accession" -pattern EXPERIMENT_PACKAGE -STUDYKEY STUDY@accession -def "NA" -unit RUN -tab "\n" -element RUN@accession,"&STUDYKEY" >"${OUTDIR}/all_zf_runs_tostudyID.tsv"
-xtract -input "${METADATAXML}" -self -head "run_accession\tsample" -pattern EXPERIMENT_PACKAGE -SAMPLEKEY SAMPLE@accession -def "NA" -unit RUN -tab "\n" -element RUN@accession,"&SAMPLEKEY" >"${OUTDIR}/all_zf_runs_tosample.tsv"
-xtract -input "${METADATAXML}" -self -head "run_accession\texperiment" -pattern EXPERIMENT_PACKAGE -EXPKEY EXPERIMENT@accession -def "NA" -unit RUN -tab "\n" -element RUN@accession,"&EXPKEY" >"${OUTDIR}/all_zf_runs_to_experiment.tsv"
+xtract -input "${METADATAXML}" -self -head "run_accession\tsample_accession" -pattern EXPERIMENT_PACKAGE -SAMPLEKEY SAMPLE@accession -def "NA" -unit RUN -tab "\n" -element RUN@accession,"&SAMPLEKEY" >"${OUTDIR}/all_zf_runs_tosample.tsv"
+xtract -input "${METADATAXML}" -self -head "run_accession\texperiment_accession" -pattern EXPERIMENT_PACKAGE -EXPKEY EXPERIMENT@accession -def "NA" -unit RUN -tab "\n" -element RUN@accession,"&EXPKEY" >"${OUTDIR}/all_zf_runs_to_experiment.tsv"
 
 xtract -input "${METADATAXML}" -self -head "study_accession\tbioproject\tbioprojects" \
          -pattern STUDY -def "NA" \
