@@ -42,7 +42,7 @@ xtract -input "${METADATAXML}" -head "run_accession\trun_alias\trun_experiment\t
 	>"${OUTDIR}/all_zf_metadata_run.tsv"
 
 # EXPERIMENT
-xtract -input "${METADATAXML}" -self -head "experiment\texperiment_alias\tstudy_ref\texperiment_title\texperiment_design_description\texperiment_library_name\texperiment_library_strategy\texperiment_library_source\texperiment_library_selection\texperiment_library_construction_protocol\texperiment_library_layout\texperiment_platform\texperiment_instrument_model\texperiment_spot_descriptor\texperiment_attributes\texperiment_enafirstpublic_date" \
+xtract -input "${METADATAXML}" -self -head "experiment_accession\texperiment_alias\tstudy_ref\texperiment_title\texperiment_design_description\texperiment_library_name\texperiment_library_strategy\texperiment_library_source\texperiment_library_selection\texperiment_library_construction_protocol\texperiment_library_layout\texperiment_platform\texperiment_instrument_model\texperiment_spot_descriptor\texperiment_attributes\texperiment_enafirstpublic_date" \
 	-pattern EXPERIMENT -def "NA" \
 	-element EXPERIMENT@accession EXPERIMENT@alias \
 	-element STUDY_REF@accession \
@@ -61,7 +61,7 @@ xtract -input "${METADATAXML}" -self -head "experiment\texperiment_alias\tstudy_
 	>"${OUTDIR}/all_zf_metadata_experiment.tsv"
 
 # SAMPLE ENA first public ENA last update
-xtract -input "${METADATAXML}" -self -head "sample\tsample_alias\tsample_title\tsample_description\tsample_attributes\tsample_enafirstpublic_date\tsample_enalastupdate_date\tsample_enafirstpublic2_date\tsample_enalastupdate2_date\tsample_insdclastupdate_date\tsample_insdcfirstpublic_date\tsample_centername" \
+xtract -input "${METADATAXML}" -self -head "sample_accession\tsample_alias\tsample_title\tsample_description\tsample_attributes\tsample_enafirstpublic_date\tsample_enalastupdate_date\tsample_enafirstpublic2_date\tsample_enalastupdate2_date\tsample_insdclastupdate_date\tsample_insdcfirstpublic_date\tsample_centername" \
 	-pattern SAMPLE -def "NA" \
 	-element SAMPLE@accession SAMPLE@alias \
 	-element TITLE \
