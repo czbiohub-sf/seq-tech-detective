@@ -30,7 +30,7 @@ class pattern:
         return idxs
 
 def metadata_annotate(file, keep_cols=[]):
-    df = pl.read_csv(file, separator='\t', row_index_name='idx')
+    df = pl.read_csv(file, separator='\t', row_index_name='idx', truncate_ragged_lines=True)
 
     # NAME, PATTERN, MAXERRORS
     patterns = [
@@ -71,11 +71,19 @@ def metadata_annotate(file, keep_cols=[]):
         pattern('generic-scrnaseq2', 'single[-_ ]?cell[-_ ]?(RNA[-_ ])?seq(uencing)?', 1),
     ]
     
+    
     # add a new column for each pattern, with the number of matches in the text
+    possible_columns = [
+        "run_accession",
+        "sample_accession",
+        "experiment_accession",
+        "study_accession"]
+    accession_col = next((col for col in possible_columns if col in df.columns), None)
     blank = pl.Series("", [_ for _ in range(len(df))])
     df = df.with_columns(
         **{p.name: blank.replace_strict(p.run(df, file), default=0) for p in patterns}
-    ).unique(subset=['accession'])
+    ).unique(subset=[accession_col])    
+    #).unique(subset=['accession'])
     # sum generic scrnaseq columns into a single column
     sum_cols = [['10x1', '10x2', '10x3'],
                 ['generic-scrnaseq1', 'generic-scrnaseq2'],
