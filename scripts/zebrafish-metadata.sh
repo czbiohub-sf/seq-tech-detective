@@ -82,7 +82,7 @@ xtract -input "${METADATAXML}" -self -head "sample_accession\tsample_alias\tsamp
 	-group SAMPLE -unless SAMPLE_ATTRIBUTE/TAG -equals "INSDC first public" -lbl "NA" \
 	-group SAMPLE_ATTRIBUTES -deq "\t" -unit SAMPLE_ATTRIBUTE -if SAMPLE_ATTRIBUTE/TAG -equals "INSDC center name" -element VALUE \
 	-group SAMPLE -unless SAMPLE_ATTRIBUTE/TAG -equals "INSDC center name" -lbl "NA" \
-	>"${OUTDIR}/all_zf_metadata_sample.tsv"
+	>"${OUTDIR}/all_zf_metadata_sample0.tsv"
 
 # STUDY
 xtract -input "${METADATAXML}" -self -head "study_accession\tstudy_alias\tstudy_title\tstudy_type\tstudy_type_other\tstudy_abstract\tstudy_attributes\tstudy_enafirstpublic_date\tstudy_enalastupdate_date\tstudy_PMIDs" \
@@ -94,11 +94,13 @@ xtract -input "${METADATAXML}" -self -head "study_accession\tstudy_alias\tstudy_
 	-group STUDY_ATTRIBUTES -deq "\t" -unit STUDY_ATTRIBUTE -if STUDY_ATTRIBUTE/TAG -equals "ENA-FIRST-PUBLIC" -element VALUE \
 	-group STUDY -unless STUDY_ATTRIBUTE/TAG -equals "ENA-FIRST-PUBLIC" -lbl "NA" \
 	-group STUDY_ATTRIBUTES -deq "\t" -unit STUDY_ATTRIBUTE -if STUDY_ATTRIBUTE/TAG -equals "ENA-LAST-UPDATE" -element VALUE \
-	-group STUDY -unless STUDY_ATTRIBUTE/TAG -equals "ENA-LAST-UPDATEC" -lbl "NA" \
+	-group STUDY -unless STUDY_ATTRIBUTE/TAG -equals "ENA-LAST-UPDATE" -lbl "NA" \
 	-group STUDY_LINKS -deq "\t" -unit XREF_LINK -tab ";" -sep ":" -element DB,ID \
 	>"${OUTDIR}/all_zf_metadata_study.tsv"
  
 # ALSO 'ROSETTA' xtract COMMANDS
 # ALSO SEPARATE XML OF BIOPROJECT METADATA AND BIOPROJECT TSV VIA xtract
+## need to trim a few NAs in extra 2 columns in sample.tsv - "${OUTDIR}/all_zf_metadata_sample.tsv"
+cut -f1-12 "${OUTDIR}/all_zf_metadata_sample0.tsv" > "${OUTDIR}/all_zf_metadata_sample.tsv"
 
 #./scripts/metadata-annotate.py combine ${OUTDIR}/all_zf_metadata_run.tsv ${OUTDIR}/all_zf_metadata_sample.tsv ${OUTDIR}/all_zf_metadata_experiment.tsv ${OUTDIR}/all_zf_metadata_study.tsv
