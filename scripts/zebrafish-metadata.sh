@@ -9,6 +9,7 @@
 
 METADATAXML=${1:-zf.xml}
 OUTDIR=${2:-intermediate}
+GEOXML=${3:-all_geo_families_cleaned.xml}
 
 # xtract: whenever we change the tab format for key-value. we need to use -deq on the next output
 # to eat a queuead field separator
@@ -102,5 +103,15 @@ xtract -input "${METADATAXML}" -self -head "study_accession\tstudy_alias\tstudy_
 # ALSO SEPARATE XML OF BIOPROJECT METADATA AND BIOPROJECT TSV VIA xtract
 ## need to trim a few NAs in extra 2 columns in sample.tsv - "${OUTDIR}/all_zf_metadata_sample.tsv"
 cut -f1-12 "${OUTDIR}/all_zf_metadata_sample0.tsv" > "${OUTDIR}/all_zf_metadata_sample.tsv"
+
+# GEO
+xtract -input "${GEOXML}" -head "GEO_accession\tGEO_title\tGEO_dataprocessing\tGEO_submission_date\tGEO_release_date\tGEO_lastupdate_date\tGEO_source\tGEO_treatmentprotocol\tGEO_extractprotocol\tGEO_growthprotocol\tGEO_characteristics" \
+        -pattern Sample -def "NA" -tab "\t" -sep ";" \
+        -element Accession Title Data-Processing \
+        -group Status -deq "\t" -def "NA" -element Submission-Date Release-Date Last-Update-Date \
+        -group Channel -def "NA" -element Source Treatment-Protocol Extract-Protocol Growth-Protocol \
+        -group Channel/Characteristics -tab "| " -sep ":" -element @tag,Characteristics -deq " | " \
+	>"${OUTDIR}/all_zf_metadata_GEO.tsv"
+
 
 #./scripts/metadata-annotate.py combine ${OUTDIR}/all_zf_metadata_run.tsv ${OUTDIR}/all_zf_metadata_sample.tsv ${OUTDIR}/all_zf_metadata_experiment.tsv ${OUTDIR}/all_zf_metadata_study.tsv
