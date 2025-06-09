@@ -4,11 +4,17 @@
 # assume single experiment (/sra) xml for now
 
 # query every zebrafish transcriptomics ("TRANSCRIPTOMIC" tag is kinda bad doesn't work should be the LibrarySource property)
-
 # esearch -db sra -query 'txid7955[Organism:noexp] ("TRANSCRIPTOMIC" OR "METATRANSCRIPTOMIC" OR "TRANSCRIPTOMIC SINGLE CELL")' | efetch -format xml > zf.xml
 
 METADATAXML=${1:-zf.xml}
 OUTDIR=${2:-intermediate}
+
+# 0) Ensure the output directory exists
+mkdir -p "$OUTDIR"
+
+# …now you can safely write into $OUTDIR…
+# e.g.
+echo "Reading metadata from $METADATAXML, writing intermediates to $OUTDIR/"
 
 # xtract: whenever we change the tab format for key-value. we need to use -deq on the next output
 # to eat a queuead field separator
