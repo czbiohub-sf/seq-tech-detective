@@ -46,7 +46,7 @@ xtract -input "${METADATAXML}" -self -head "study_accession\tstudy_alias" \
          -pattern STUDY -def "NA" \
          -element STUDY@accession STUDY@alias >"${OUTDIR}/all_zf_studies_to_GSEids.tsv"
 
-## now running python commands in zebrafish-metadata-rosetta.py - this doesn't seem to work, need to run .py separately?
+## now running python commands in zebrafish-metadata-rosetta.py - this didn't work initially, need to source conda first
 
 echo "Now loading python for zebrafish-metadata-rosetta.py"
 module load data.science
