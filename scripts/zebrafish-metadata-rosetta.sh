@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # metadata
 # assume single experiment (/sra) xml for now
@@ -47,6 +48,7 @@ xtract -input "${METADATAXML}" -self -head "study_accession\tstudy_alias" \
          -element STUDY@accession STUDY@alias >"${OUTDIR}/all_zf_studies_to_GSEids.tsv"
 
 ## now running python commands in zebrafish-metadata-rosetta.py - this didn't work initially, need to source conda first
+## these are CZB HPC-specific, BTW
 
 echo "Now loading python for zebrafish-metadata-rosetta.py"
 module load data.science
@@ -59,8 +61,9 @@ module load data.science
 ## results in /hpc/apps/x86_64/anaconda/2021_09_16/bin/conda
 ## so source should be /hpc/apps/x86_64/anaconda/2021_09_16/etc/profile.d/conda.sh
 
-# Then activate your env
-#conda activate single-cell-base
+# Next activate your env conda, then activate single-cell-base
+## or just load conda? - doesn't work on its own
+#module load anaconda
 
 if [ -f "/hpc/apps/x86_64/anaconda/2021_09_16/etc/profile.d/conda.sh" ]; then
     source /hpc/apps/x86_64/anaconda/2021_09_16/etc/profile.d/conda.sh
@@ -70,11 +73,8 @@ else
     exit 1
 fi
 
-
-# Now run your script
-chmod a+x zebrafish-metadata-rosetta.py
+# Now run your script - make sure you have done this: chmod +x zebrafish-metadata-rosetta.py
 echo "Now running python commands in zebrafish-metadata-rosetta.py"
 ./zebrafish-metadata-rosetta.py
-
 
 echo "Complete!!"
