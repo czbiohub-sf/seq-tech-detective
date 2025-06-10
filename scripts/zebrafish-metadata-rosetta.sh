@@ -4,6 +4,7 @@
 # assume single experiment (/sra) xml for now
 
 # query every zebrafish transcriptomics ("TRANSCRIPTOMIC" tag is kinda bad doesn't work should be the LibrarySource property)
+
 # esearch -db sra -query 'txid7955[Organism:noexp] ("TRANSCRIPTOMIC" OR "METATRANSCRIPTOMIC" OR "TRANSCRIPTOMIC SINGLE CELL")' | efetch -format xml > zf.xml
 
 METADATAXML=${1:-zf.xml}
@@ -15,6 +16,7 @@ mkdir -p "$OUTDIR"
 # …now you can safely write into $OUTDIR…
 # e.g.
 echo "Reading metadata from $METADATAXML, writing intermediates to $OUTDIR/"
+
 
 # xtract: whenever we change the tab format for key-value. we need to use -deq on the next output
 # to eat a queuead field separator
@@ -44,5 +46,35 @@ xtract -input "${METADATAXML}" -self -head "study_accession\tstudy_alias" \
          -pattern STUDY -def "NA" \
          -element STUDY@accession STUDY@alias >"${OUTDIR}/all_zf_studies_to_GSEids.tsv"
 
-         
+## now running python commands in zebrafish-metadata-rosetta.py - this doesn't seem to work, need to run .py separately?
 
+echo "Now loading python for zebrafish-metadata-rosetta.py"
+module load data.science
+
+# need this line first: Load the conda setup (adjust path to your system)
+#source /hpc/user_apps/data.science/miniconda3/etc/profile.d/conda.sh
+## found via conda info - this is wrong
+## source /hpc/apps/x86_64/anaconda/2021_09_16/pkgs/conda-4.12.0-py38h578d9bd_0/etc/profile.d/conda.sh
+## try this module load data.science then echo $CONDA_EXE
+## results in /hpc/apps/x86_64/anaconda/2021_09_16/bin/conda
+## so source should be /hpc/apps/x86_64/anaconda/2021_09_16/etc/profile.d/conda.sh
+
+# Then activate your env
+#conda activate single-cell-base
+
+if [ -f "/hpc/apps/x86_64/anaconda/2021_09_16/etc/profile.d/conda.sh" ]; then
+    source /hpc/apps/x86_64/anaconda/2021_09_16/etc/profile.d/conda.sh
+    conda activate single-cell-base
+else
+    echo "ERROR: Cannot find conda.sh"
+    exit 1
+fi
+
+
+# Now run your script
+chmod a+x zebrafish-metadata-rosetta.py
+echo "Now running python commands in zebrafish-metadata-rosetta.py"
+./zebrafish-metadata-rosetta.py
+
+
+echo "Complete!!"
