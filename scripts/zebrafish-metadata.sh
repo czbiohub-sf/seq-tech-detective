@@ -136,7 +136,7 @@ module load data.science
 conda activate single-cell-base
 
 # Now run your script - make sure you have done this: chmod +x zebrafish-metadata-combining.py
-echo "Now running python commands in zebrafish-metadata-combining.pyy"
+echo "Now running python commands in zebrafish-metadata-combining.py"
 ./zebrafish-metadata-combining.py
 
 
