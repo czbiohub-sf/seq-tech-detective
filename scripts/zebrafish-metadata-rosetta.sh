@@ -64,3 +64,11 @@ echo "Now running python commands in zebrafish-metadata-rosetta.py"
 ./zebrafish-metadata-rosetta.py
 
 echo "Complete!!"
+## next command is ./download_geo.sh all_zf_listofGSEids.tsv
+## output is all_geo_families.xml & all_geo_families_cleaned.xml
+echo ""
+echo "Next step is to download GEO records from recently made all_zf_listofGSEids.tsv"
+echo "To do this run this command:"
+echo ""
+echo "./download_geo.sh  all_zf_listofGSEids.tsv"
+echo "Note that to download thousands of records may take minutes to hours."
