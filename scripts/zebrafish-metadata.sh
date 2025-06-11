@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # metadata
 # assume single experiment (/sra) xml for now
@@ -14,6 +15,9 @@ GEOXML=${3:-all_geo_families_cleaned.xml}
 # xtract: whenever we change the tab format for key-value. we need to use -deq on the next output
 # to eat a queuead field separator
 ## for attributes was -tab ";" -sep ":" and first changed to -tab ";" -sep "|"  but need to correct to -tab "|" -sep ":" 
+
+echo ""
+echo "Reading metadata from $METADATAXML, writing intermediates to $OUTDIR/"
 
 # RUN
 xtract -input "${METADATAXML}" -head "run_accession\trun_alias\trun_experiment\tpool_member\ttotal_spots\ttotal_bases\trun_published_date\trun_title\trun_spot_descriptor\trun_processing\trun_read:length\trun_base:count\trun_SRAFile_date\trun_lastSRAFile_date\trun_filename\trun_semantic_name\trun_attributes\trun_enafirstpublic_date\trun_enalastupdate_date" \
@@ -100,9 +104,14 @@ xtract -input "${METADATAXML}" -self -head "study_accession\tstudy_alias\tstudy_
 	>"${OUTDIR}/all_zf_metadata_study.tsv"
  
 # ALSO 'ROSETTA' xtract COMMANDS
-# ALSO SEPARATE XML OF BIOPROJECT METADATA AND BIOPROJECT TSV VIA xtract
+# ALSO SEPARATE XML OF BIOPROJECT METADATA AND BIOPROJECT TSV VIA xtract - no but pulling GEO below...
+
 ## need to trim a few NAs in extra 2 columns in sample.tsv - "${OUTDIR}/all_zf_metadata_sample.tsv"
 cut -f1-12 "${OUTDIR}/all_zf_metadata_sample0.tsv" > "${OUTDIR}/all_zf_metadata_sample.tsv"
+
+echo ""
+echo "Reading GEO metadata from $GEOXML, writing intermediates to $OUTDIR/"
+
 
 # GEO
 xtract -input "${GEOXML}" -head "GEO_accession\tGEO_title\tGEO_dataprocessing\tGEO_submission_date\tGEO_release_date\tGEO_lastupdate_date\tGEO_source\tGEO_treatmentprotocol\tGEO_extractprotocol\tGEO_growthprotocol\tGEO_characteristics" \
@@ -114,4 +123,24 @@ xtract -input "${GEOXML}" -head "GEO_accession\tGEO_title\tGEO_dataprocessing\tG
 	>"${OUTDIR}/all_zf_metadata_GEO.tsv"
 
 
+## now running python commands in zebrafish-metadata-combining.py - first run module load anaconda
+## these are CZB HPC-specific, BTW
+
+echo "Now loading python for zebrafish-metadata-combining.py"
+## try loading anaconda first??
+module load anaconda
+module load data.science
+
+# now activate single-cell-base
+#conda activate /hpc/user_apps/data.science/conda_envs/single-cell-base
+conda activate single-cell-base
+
+# Now run your script - make sure you have done this: chmod +x zebrafish-metadata-combining.py
+echo "Now running python commands in zebrafish-metadata-combining.pyy"
+./zebrafish-metadata-combining.py
+
+
+echo "Complete!!"
+
+## follow-up, for Y's technology curation script:
 #./scripts/metadata-annotate.py combine ${OUTDIR}/all_zf_metadata_run.tsv ${OUTDIR}/all_zf_metadata_sample.tsv ${OUTDIR}/all_zf_metadata_experiment.tsv ${OUTDIR}/all_zf_metadata_study.tsv
