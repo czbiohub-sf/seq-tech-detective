@@ -74,18 +74,19 @@ mapping_to_json() {
 }
 
 mapping_main() {
-	set -e
+	set -ex
 	shopt -s inherit_errexit
 	FASTQ="${1}"
 	HISAT2_INDEX="${2}"
 	GTF="${3}"
 	OUTFILE="${4:-/dev/stdout}"
 	THREADS="${5:-8}"
-	QC_STATS="${6:-0}"
-	READS="${7:-}"
-
+	READS="${6:-}"
+	QC_STATS="${7:-0}"
+	PREQC_STATS="${8:-1}"
+	FASTP_PARAMS=(${9:--x -q 17 -u 15 -n 50 --length_required 2 -p}) # that's one -x
 	HISAT_PARAMS=(--no-temp-splicesite --mm --new-summary --summary-file /dev/null -k 1 -p "${THREADS}")
-	FASTP_PARAMS=(-x -q 17 -u 15 -n 50 --length_required 2 -p)
+
 	FASTP_EXTRACT="{summary:.summary|pick(.before_filtering,.after_filtering|.total_reads,.total_bases,.read1_mean_length,.gc_content),
 	filtering_result:.filtering_result,
 	adapter_cutting:.adapter_cutting,
@@ -96,7 +97,7 @@ mapping_main() {
 	#EX_ADP="--adapter_fasta fastp_adapters.fasta"
 
 	# run fastp first for read stats and warm files
-	if [[ -n "${QC_STATS}" ]]; then
+	if [[ "${QC_STATS}" -eq 1 ]]; then
 		QC_FASTQ="${FASTQ}.fastp.fastq"
 	else
 		QC_FASTQ="/dev/null"
@@ -113,9 +114,11 @@ mapping_main() {
 	counts_file_qc="${FASTQ}.qc.counts"
 	counts_summary_file_qc="${counts_file_qc}.summary"
 	# run pre-qc hisat2
-	hisat2 -x "${HISAT2_INDEX}" -U "${FASTQ}" -S "${samfile}" "${HISAT_PARAMS[@]}" 2>/dev/null
+	if [[ "${PREQC_STATS}" -eq 1 ]]; then
+		hisat2 -x "${HISAT2_INDEX}" -U "${FASTQ}" -S "${samfile}" "${HISAT_PARAMS[@]}" 2>/dev/null
+	fi
 	# possibly run post-qc hisat2
-	if [[ -n "${QC_STATS}" ]]; then
+	if [[ "${QC_STATS}" -eq 1 ]]; then
 		READS_AFTER=$(<<<"${fastp_info}" jq ".filtering_result.passed_filter_reads")
 		hisat2 -x "${HISAT2_INDEX}" -U "${QC_FASTQ}" -S "${samfile_qc}" "${HISAT_PARAMS[@]}" 2>/dev/null
 		rm -f "${QC_FASTQ}"
@@ -143,7 +146,7 @@ mapping_main() {
 # https://gabrielstaples.com/bash-libraries/
 if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	if [[ "$#" -lt 3 ]]; then
-		echo "Usage: $0 <FASTQ> <HISAT2_INDEX> <GTF> [OUTFILE] [THREADS] [QC_STATS] [READS]" 1>&2
+		echo "Usage: $0 <FASTQ> <HISAT2_INDEX> <GTF> [OUTFILE] [THREADS] [READS] [QC_STATS] [RAW_STATS] [FASTP PARAMS]" 1>&2
 	else
 		mapping_main "$@"
 	fi

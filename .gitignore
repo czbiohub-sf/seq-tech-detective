@@ -7,6 +7,7 @@ seq-detective/
 # runtime generated files
 ref/*
 intermediate/*
+scan/*
 
 #
 src/test

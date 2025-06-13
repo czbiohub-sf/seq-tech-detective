@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+#::help
+#: seq-detective-judge @VERSION@ (core)
+#: module for judging collected metrics
+#:    usage: seq-detective-judge [options] <file.json>
+#:
+#:    [--per-acc]   (f) Output mode: one line per-accession (default: one line per file)
+#:    [-b]          (f) Pseudobulking "core" mode, determine only whether reads are biological (B) or technical (T)
+#:    [-H]          (f) suppress header in output (default: print header)
+#:
+#:  pseudobulking judgement amendment options:
+#:    [--amend-paired-t] (f) if two matefiles judged T with sparse gene hits, force most likely cDNA mate as B
+#:
+#:    Output: tab-separated values of filename (accession if --per-acc) and judgement columns
+#::
+
+import polars as pl
+try:
+    import simdjson as json
+except ImportError:
+    import json as json
+import sys
+import argparse
+from pathlib import Path
+
+def get_args():
+    ap = argparse.ArgumentParser(description="module for judging collected metrics",
+                                 epilog="output: tab-separated values of filename (accession if --per-acc) and judgement columns")
+    # module for judging collected metrics
+    ap.add_argument("json_file", metavar="file.json", nargs='?', type=argparse.FileType('r'), default=sys.stdin)
+    ap.add_argument("--per-acc", help='output one line per accession (default: one line per file)', action="store_true")
+    ap.add_argument("-b", help='pseudobulking "core" mode, determine only whether reads are biological (B) or technical (T)', action="store_true")
+    ap.add_argument("-H", "--no-header", help='suppress header in output (default: print header)', action="store_true")
+
+    # pseudobulking judgement amendment options
+    ap_bulk = ap.add_argument_group("pseudobulking judgement amendment options")
+    ap_bulk.add_argument("--amend-paired-t", help='if two matefiles judged T with sparse gene hits, force most likely cDNA mate as B', action="store_true")
+    return ap.parse_args()
+
+def print_usage(section: str):
+    with Path(__file__).resolve().open() as f:
+        in_section = False
+        for line in f:
+            if line.startswith(f"#::{section}"):
+                in_section = True
+                continue
+            elif in_section and line.startswith("#::"):
+                return
+            if in_section:
+                print(line[2:], end="")
+
+def json_to_df(data):
+    def matefiles_as_keys(o):
+        for i,v in enumerate(o["readfiles"]):
+            o[f"mate{i+1}"] = v
+        return o
+    single = [matefiles_as_keys(o) for o in data if len(o["readfiles"]) == 1]
+    two_mates = [matefiles_as_keys(o) for o in data if len(o["readfiles"]) == 2]
+    for o in data:
+        del o["readfiles"]
+
+    df_1 = pl.json_normalize(single)
+    df_2 = pl.json_normalize(two_mates)
+
+    # clean up mapping to a single primary set
+    def pl_elvis(col, col2, default):
+        return pl.when(pl.col(col).is_not_null()).then(pl.col(col)).when(pl.col(col2).is_not_null()).then(pl.col(col2)).otherwise(default)
+    def pl_pctdiff(a, b):
+        return pl.col(a).sub(pl.col(b)).truediv(pl.max_horizontal(a, b)).alias("pctdiff")
+
+    df_1 = df_1.with_columns(
+        pl_elvis("mate1.mapping.qc.mapping_rate", "mate1.mapping.raw.mapping_rate", 0.0).alias("primary.mate1.mapping_rate"),
+        pl_elvis("mate1.mapping.qc.sparsity", "mate1.mapping.raw.sparsity", 1.0).alias("primary.mate1.sparsity"),
+        pl_elvis("mate1.mapping.qc.nofeature_rate", "mate1.mapping.raw.nofeature_rate", 1.0).alias("primary.mate1.nofeature_rate"),
+        pl_elvis("mate1.mapping.qc.avg_gene_size", "mate1.mapping.raw.avg_gene_size", 0.0).alias("primary.mate1.avg_gene_size"),
+        pl.lit(0.0).alias("primary.mapping_diff"),
+    )
+
+    df_2 = df_2.with_columns(
+        pl_elvis("mate1.mapping.qc.mapping_rate", "mate1.mapping.raw.mapping_rate", 0.0).alias("primary.mate1.mapping_rate"),
+        pl_elvis("mate2.mapping.qc.mapping_rate", "mate2.mapping.raw.mapping_rate", 0.0).alias("primary.mate2.mapping_rate"),
+        pl_elvis("mate1.mapping.qc.sparsity", "mate1.mapping.raw.sparsity", 1.0).alias("primary.mate1.sparsity"),
+        pl_elvis("mate2.mapping.qc.sparsity", "mate2.mapping.raw.sparsity", 1.0).alias("primary.mate2.sparsity"),
+        pl_elvis("mate1.mapping.qc.nofeature_rate", "mate1.mapping.raw.nofeature_rate", 1.0).alias("primary.mate1.nofeature_rate"),
+        pl_elvis("mate2.mapping.qc.nofeature_rate", "mate2.mapping.raw.nofeature_rate", 1.0).alias("primary.mate2.nofeature_rate"),
+        pl_elvis("mate1.mapping.qc.avg_gene_size", "mate1.mapping.raw.avg_gene_size", 0.0).alias("primary.mate1.avg_gene_size"),
+        pl_elvis("mate2.mapping.qc.avg_gene_size", "mate2.mapping.raw.avg_gene_size", 0.0).alias("primary.mate2.avg_gene_size"),
+    )
+    df_2 = df_2.with_columns(
+        pl_pctdiff("primary.mate1.mapping_rate", "primary.mate2.mapping_rate").alias("primary.mapping_diff"),
+        pl_pctdiff("mate1.mapping.fastp.filtering_result.passed_filter_reads", "mate2.mapping.fastp.filtering_result.passed_filter_reads").alias("primary.passed_filter_diff")
+    )
+
+    return df_1, df_2
+
+def print_judgement_core(results, cfg):
+    if cfg.per_acc:
+        if not cfg.no_header:
+            print("accession\tmate1.name\tmate2.name\tjudgement1\tjudgement2\treason")
+        if "mate2.name" not in results.columns:
+            results = results.with_columns(pl.lit(None).alias("mate2.name"))
+        print(results[['accession', 'mate1.name', 'mate2.name', 'judgement1', 'judgement2', 'reason']].write_csv(separator="\t", include_header=False).strip())
+    else:
+        if not cfg.no_header:
+            print("accession\tfilename\tjudgement\treason")
+        # output one line per file
+        if "mate2.name" not in results.columns:
+            for row in results.iter_rows(named=True):
+                print(f"{row['accession']}\t{row['mate1.name']}\t{row['judgement1']}\t{row['reason']}")
+        else:
+            for row in results.iter_rows(named=True):
+                print(f"{row['accession']}\t{row['mate1.name']}\t{row['judgement1']}\t{row['reason']}")
+                print(f"{row['accession']}\t{row['mate2.name']}\t{row['judgement2']}\t{row['reason']}")
+
+def judge_core(row, cfg):
+    def judge_single():
+        print_judgement_core(row[['accession', 'mate1.name', 'judgement1', 'judgement2', 'reason']], cfg)
+    def judge_paired():
+        print_judgement_core(row[['accession', 'mate1.name', 'mate2.name', 'judgement1', 'judgement2', 'reason']], cfg)
+
+    if "mate1.readlen" not in row:
+        # unusable
+        print(row["accession"], "has invalid data or 0 reads.", file=sys.stderr)
+        return
+    elif "mate2.readlen" not in row:
+        row = row.with_columns(
+            # we artificially do not allow long reads because they are not handled by our short read aligners
+            pl.when(pl.col("mate1.readlen") > 500)
+            .then(pl.struct(judgement1=pl.lit("T"), judgement2=pl.lit(None), reason=pl.lit("long read")))
+            # if this is single end short read, just look at whether we have a usable mapping rate
+            .when(pl.col("primary.mate1.mapping_rate") >= 0.012)
+            .then(pl.struct(judgement1=pl.lit("B"), judgement2=pl.lit(None), reason=pl.lit("usable mapping rate")))
+            .otherwise(pl.struct(judgement1=pl.lit("T"), judgement2=pl.lit(None), reason=pl.lit("under 1.2% mapping rate")))
+            .struct.unnest()
+        )
+        return judge_single()
+    else:
+        row = row.with_columns(
+            # we have two matefiles, so we can do some more checks
+            pl.when(pl.col("primary.mate1.mapping_rate").lt(pl.lit(0.09)),
+                    pl.col("primary.mate2.mapping_rate").lt(pl.lit(0.09)),
+                    pl.lit(not cfg.amend_paired_t))
+                    # both mates have very low mapping rate, throw them out
+                    .then(pl.struct(judgement1=pl.lit("T"), judgement2=pl.lit("T"), reason=pl.lit("mates < 9% mapping rate")))
+            # catch 10x-like technical lengths immediately
+            .when(pl.col("mate1.readlen").le(pl.lit(29)),
+                  pl.col("mate2.readlen").ge(pl.lit(49)))
+                  .then(pl.struct(judgement1=pl.lit("T"), judgement2=pl.lit("B"), reason=pl.lit("sc-like readlen")))
+            .when(pl.col("mate1.readlen").ge(pl.lit(49)),
+                  pl.col("mate2.readlen").le(pl.lit(29)))
+                  .then(pl.struct(judgement1=pl.lit("B"), judgement2=pl.lit("T"), reason=pl.lit("sc-like readlen")))
+            # first, check basic mapping diff to pick a feature/mapping slope
+            # negative mapping diff side
+            .when(pl.col("primary.mapping_diff").le(pl.lit(-0.25)) &
+                  pl.col("primary.mate1.nofeature_rate").gt(pl.lit(0.6) * pl.col("primary.mapping_diff") + pl.lit(0.45)))
+                    # r1 nofeature > 0.6*mapping_diff + 0.45: T B
+                    .then(pl.struct(judgement1=pl.lit("T"), judgement2=pl.lit("B"), reason=pl.lit("mate1 technical by mapping diff")))
+            .when(pl.col("primary.mapping_diff").le(pl.lit(-0.25)) &
+                  (pl.col("primary.mate1.nofeature_rate").le(pl.lit(0.6) * pl.col("primary.mapping_diff") + pl.lit(0.45))))
+                    .then(pl.struct(judgement1=pl.lit("B"), judgement2=pl.lit("B"), reason=pl.lit("mate1-mate2 similar by mapping diff")))
+            # positive mapping diff side
+            .when(pl.col("primary.mapping_diff").ge(pl.lit(0.25)) &
+                    (pl.col("primary.mate2.nofeature_rate").gt(pl.lit(-0.6) * pl.col("primary.mapping_diff") + pl.lit(0.45))))
+                    # r1 nofeature > 0.6*mapping_diff + 0.45: B T
+                    .then(pl.struct(judgement1=pl.lit("B"), judgement2=pl.lit("T"), reason=pl.lit("mate2 technical by mapping diff")))
+            .when(pl.col("primary.mapping_diff").ge(pl.lit(0.25)) &
+                    (pl.col("primary.mate2.nofeature_rate").le(pl.lit(-0.6) * pl.col("primary.mapping_diff") + pl.lit(0.45))))
+                    .then(pl.struct(judgement1=pl.lit("B"), judgement2=pl.lit("B"), reason=pl.lit("mate2-mate1 similar by mapping diff")))
+            # these are now *probably* B B, but there are outliers            
+            .when(pl.min_horizontal("primary.mate1.nofeature_rate", "primary.mate2.nofeature_rate").lt(abs(-2.8 * pl.col("primary.mapping_diff") + 1.00)))
+                    .then(pl.struct(judgement1=pl.lit("B"), judgement2=pl.lit("B"), reason=pl.lit("biological fallback assumption")))
+            .otherwise(
+                pl.when(pl.col("primary.mate1.mapping_rate").lt(pl.col("primary.mate2.mapping_rate")))
+                    .then(pl.struct(judgement1=pl.lit("T"), judgement2=pl.lit("B"), reason=pl.lit("nofeature rate indicates technical or non-transcriptomic")))
+                    .otherwise(pl.struct(judgement1=pl.lit("B"), judgement2=pl.lit("T"), reason=pl.lit("nofeature rate indicates technical or non-transcriptomic")))
+            )
+            .struct.unnest()
+        )
+        return judge_paired()
+
+# core mode: format is filename\tjudgement
+def write_core(cfg, df_1, df_2):
+    judge_core(df_1, cfg)
+    judge_core(df_2, cfg)
+
+if __name__ == "__main__":
+    args = get_args()
+
+    data = json.load(args.json_file)
+    df_1, df_2 = json_to_df(data)
+    if args.b:
+        write_core(args, df_1, df_2)
+    else:
+        print("technology classification not implemented in this version.")
+        sys.exit(1)
+    sys.exit(0)

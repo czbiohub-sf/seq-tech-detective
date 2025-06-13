@@ -16,7 +16,7 @@
 #:    usage: seq-detective index <assembly name>
 #::download
 #: seq-detective download
-#: download SRA with a read limit using seq-detective rules (not implemented)
+#: download SRA with a read limit using seq-detective rules (NOT IMPLEMENTED)
 #:    usage: seq-detective download [-X limit] [-c threads] [-b] <ACCESSION> <types>
 #:
 #:    <types>       Original SRA upload semantic_name(s), e.g. "bam" or "fastq fastq fastq".
@@ -28,11 +28,15 @@
 #::fingerprint
 #::core
 #: seq-detective core
-#: run mapping phase and technical/biological judgement only on specified fastq
-#:    usage: seq-detective core <fastq> <hisat2 index> <gtf>
+#: run mapping phase and technical/biological judgement only on fastq matching <accession> prefix
+#:    usage: seq-detective core <accession> <hisat2 index> <gtf> [<outfile>] [<threads>(8)] [<qc_stats>(0)] [<preqc_stats>(1)] ["<fastp_params>"]
+#::judge
+#: seq-detective judge
+#: run seq-detective judge on scan result json
+#:    usage: seq-detective judge [options] <file.json>
 #::
 
-set -e
+set -ex
 COMMAND="${1}"
 showhelp() {
 	# enable printing when we see #::${1}, disable when we see #::
@@ -94,7 +98,7 @@ index() {
 	if [[ -f "${cached}" ]]; then
 		parse_named_reference "${name}"
 		if [[ -n "${FNA}" && -n "${GTF}" && -n "${HS2}" ]]; then
-			echo "have existing reference for '${name}'" >&2
+			echo "have existing reference for '${name}' in ${cached}" >&2
 			echo "fna: ${FNA}"
 			echo "gtf: ${GTF}"
 			echo "${HS2}"
@@ -185,24 +189,24 @@ json_wrap_fastq_core() {
 	}
 }
 
-core() {
+core-map() {
 	set -e
 	FASTQ="${1}"
 	HISAT2_INDEX="${2}"
 	GTF="${3}"
 	OUTFILE="${4:-/dev/stdout}"
-	PRINT_HEADER="${5:-0}"
-	THREADS="${6:-8}"
-	USE_FASTP="${7:-0}"
-	FORMAT="${8:-json}"
-	PRETTY_PRINT="${9:-0}"
+	THREADS="${5:-8}"
+	QC_STATS="${6:-0}"
+	PREQC_STATS="${7:-1}"
+	FASTP_PARAMS="${8:-}" # that's one -x
+	FORMAT="${9:-json}"
 
 	# get read length and number of reads directly from fastq since we don't run fingerprint
 	readlen=$(awk 'NR==4{print length($0); exit}' "${FASTQ}")
 	reads=$(($(wc -l "${FASTQ}" | cut -f1 -d' ') / 4))
 
 	if [[ "${FORMAT}" == "json" ]]; then
-		out="${out}$(mapping_main "${FASTQ}" "${HISAT2_INDEX}" "${GTF}" "${OUTFILE}" "${THREADS}" "${USE_FASTP}" "${reads}")"
+		out="${out}$(mapping_main "${FASTQ}" "${HISAT2_INDEX}" "${GTF}" "${OUTFILE}" "${THREADS}" "${reads}" "${QC_STATS}" "${PREQC_STATS}" "${FASTP_PARAMS}")"
 		out="$(json_wrap_fastq_core "${FASTQ}" "${reads}" "${readlen}" "${out}")"
 	fi
 
@@ -212,6 +216,41 @@ core() {
 		echo "${out}" 1>>"${OUTFILE}"
 	fi
 }
+
+core() {
+	set -e
+	# accession/file prefix, reference prefix, gtf
+	PREFIX="${1}"
+	HISAT2_INDEX="${2}"
+	GTF="${3}"
+	OUTFILE="${4:-/dev/stdout}"
+	THREADS="${5:-8}"
+	QC_STATS="${6:-0}"
+	PREQC_STATS="${7:-1}"
+	FASTP_PARAMS="${8:-}" # that's one -x
+	FORMAT="${9:-json}"
+
+	json="{\"accession\": \"${PREFIX}\","
+	json="${json}\"readfiles\": [${NL}"
+	first=1
+	files=$(ls "${PREFIX}"*.f*q 2>/dev/null)
+	for file in ${files}; do
+		# array item per file
+		[ ${first} -ne 1 ] && json="${json},${NL}"
+		f_res=$(core-map "${file}" "${HISAT2_INDEX}" "${GTF}" "${OUTFILE}" "${THREADS}" "${QC_STATS}" "${PREQC_STATS}" "${FASTP_PARAMS}" "${FORMAT}")
+		json="${json}${f_res}"
+		rm "${file}"
+		first=0
+	done
+	# close accession block
+	if [ "${idx}" -lt "${END}" ]; then
+		json="${json}${NL}]},${NL}"
+	else
+		json="${json}${NL}]}${NL}"
+	fi
+	echo "${json}" 1>>"${OUTFILE}"
+}
+#::version
 
 # TODO: need option parsing! (--json)
 # (if any -h, command is "help" and $COMMAND is the next argument)
@@ -235,9 +274,22 @@ case "${COMMAND}" in
 	# file, reference prefix, gtf
 	fingerprint-rough "${2}" "${3}" "${4}"
 	;;
-"core")
+"core-map")
 	# file, reference prefix, gtf
-	core "${2}" "${3}" "${4}"
+	# (file, hisat2 index prefix, gtf, outfile, threads, qc_stats, raw_stats, fastp_params)
+	shift 1 # shift off subcommand
+	core-map "$@"
+	;;
+"judge")
+	# json file
+	shift 1 # shift off subcommand
+	judge.py "$@"
+	;;
+"core")
+	# accession prefix, reference prefix, gtf
+	shift 1 # shift off subcommand
+	# core-map -> judge pipeline
+	core "$@"
 	;;
 "help" | -h)
 	showhelp "${2:-help}"
@@ -248,3 +300,12 @@ case "${COMMAND}" in
 	exit 1
 	;;
 esac
+
+#TODO:
+# index:
+#  - need moved to its own module
+#  - -l --list-references to list available references, check integrity
+#  - registering custom reference?
+# mapping:
+#  - search by local ref name shorthand before path check
+
