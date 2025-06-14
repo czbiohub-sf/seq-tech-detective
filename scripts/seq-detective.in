@@ -36,7 +36,7 @@
 #:    usage: seq-detective judge [options] <file.json>
 #::
 
-set -ex
+set -e
 COMMAND="${1}"
 showhelp() {
 	# enable printing when we see #::${1}, disable when we see #::
