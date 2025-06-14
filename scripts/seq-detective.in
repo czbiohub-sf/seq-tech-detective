@@ -243,11 +243,7 @@ core() {
 		first=0
 	done
 	# close accession block
-	if [ "${idx}" -lt "${END}" ]; then
-		json="${json}${NL}]},${NL}"
-	else
-		json="${json}${NL}]}${NL}"
-	fi
+	json="${json}${NL}]}${NL}"
 	echo "${json}" 1>>"${OUTFILE}"
 }
 #::version
