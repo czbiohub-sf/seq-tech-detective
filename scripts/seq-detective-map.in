@@ -147,7 +147,9 @@ mapping_main() {
 
 	# pre-qc featurecounts
 	# consider -Q <num> quality threshold?
-	featureCounts -a "${GTF}" -T "${THREADS}" -o "${counts_file}" "${samfile}" 1>/dev/null 2>/dev/null
+	if [[ "${PREQC_STATS}" -eq 1 ]]; then
+		featureCounts -a "${GTF}" -T "${THREADS}" -o "${counts_file}" "${samfile}" 1>/dev/null 2>/dev/null
+	fi
 	# parse output
 	if [[ "${PREQC_STATS}" -eq 1 ]]; then
 		out="$(json_kv raw "$(parse_mapping "${counts_file}" "${counts_summary_file}" "${READS}")")"
