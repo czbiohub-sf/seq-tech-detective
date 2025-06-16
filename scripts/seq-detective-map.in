@@ -61,11 +61,10 @@ json_kv_sf() {
 	VALUE="${2}"
 	{
 		if [[ "${VALUE}" == "NA" ]]; then
-			printf "\"%s\": %s" "${KEY}" "${VALUE}"
+			printf "\"%s\": \"NaN\"" "${KEY}"
 		else
 			printf "\"%s\": %.5f" "${KEY}" "${VALUE}"
 		fi
-		
 	}
 }
 
@@ -81,10 +80,15 @@ mapping_to_json() {
 	{
 		printf "{"
 		json_kv_sf "mapping_rate" "${1}"
+		printf ","
 		json_kv_sf "nofeature_rate" "${2}"
+		printf ","
 		json_kv_sf "lowqual_rate" "${3}"
+		printf ","
 		json_kv_sf "sparsity" "${4}"
+		printf ","
 		json_kv_sf "pos_strand_rate" "${5}"
+		printf ","
 		json_kv_sf "avg_gene_size" "${6}"
 		printf "}"
 	}
