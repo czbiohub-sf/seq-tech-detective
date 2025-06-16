@@ -53,6 +53,23 @@ json_kv() {
 	}
 }
 
+# format a json str:float pair
+# $1: str key
+# $2: float value
+json_kv_sf() {
+	KEY="${1}"
+	VALUE="${2}"
+	{
+		if [[ "${VALUE}" == "NA" ]]; then
+			printf "\"%s\": %s" "${KEY}" "${VALUE}"
+		else
+			printf "\"%s\": %.5f" "${KEY}" "${VALUE}"
+		fi
+		
+	}
+}
+
+
 # mapping info to json serialization
 # $1: mapping_rate
 # $2: nofeature_rate
@@ -63,12 +80,12 @@ json_kv() {
 mapping_to_json() {
 	{
 		printf "{"
-		printf "\"mapping_rate\":%.5f," "${1}"
-		printf "\"nofeature_rate\":%.5f," "${2}"
-		printf "\"lowqual_rate\":%.5f," "${3}"
-		printf "\"sparsity\":%.5f," "${4}"
-		printf "\"pos_strand_rate\":%.5f," "${5}"
-		printf "\"avg_gene_size\":%.3f" "${6}"
+		json_kv_sf "mapping_rate" "${1}"
+		json_kv_sf "nofeature_rate" "${2}"
+		json_kv_sf "lowqual_rate" "${3}"
+		json_kv_sf "sparsity" "${4}"
+		json_kv_sf "pos_strand_rate" "${5}"
+		json_kv_sf "avg_gene_size" "${6}"
 		printf "}"
 	}
 }
