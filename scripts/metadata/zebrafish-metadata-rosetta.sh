@@ -19,17 +19,18 @@ mkdir -p "$OUTDIR"
 echo ""
 echo "Reading metadata from $METADATAXML, writing intermediates to $OUTDIR/"
 
+
 # xtract: whenever we change the tab format for key-value. we need to use -deq on the next output
 # to eat a queuead field separator
 ## for attributes was -tab ";" -sep ":" and first changed to -tab ";" -sep "|"  but need to correct to -tab "|" -sep ":" 
 
 ## THE FOLLOWING SCRIPT IS TO PULL FIELDS TO CREATE A 'ROSETTA' KEY FILE TO LINK RUNS, EXPERIMENTS, SAMPLES, STUDIES, BIORPOJECTS, AND GEO IDS
 
-xtract -input "${METADATAXML}" -self -head "run_accession\tstudy_accession" -pattern EXPERIMENT_PACKAGE -STUDYKEY STUDY@accession -def "NA" -unit RUN -tab "\n" -element RUN@accession,"&STUDYKEY" >"${OUTDIR}/all_zf_runs_tostudyID.tsv"
-xtract -input "${METADATAXML}" -self -head "run_accession\tsample_accession" -pattern EXPERIMENT_PACKAGE -SAMPLEKEY SAMPLE@accession -def "NA" -unit RUN -tab "\n" -element RUN@accession,"&SAMPLEKEY" >"${OUTDIR}/all_zf_runs_tosample.tsv"
-xtract -input "${METADATAXML}" -self -head "run_accession\texperiment_accession" -pattern EXPERIMENT_PACKAGE -EXPKEY EXPERIMENT@accession -def "NA" -unit RUN -tab "\n" -element RUN@accession,"&EXPKEY" >"${OUTDIR}/all_zf_runs_to_experiment.tsv"
+xtract -input "${METADATAXML}" -self -head "run.accession\tstudy.accession" -pattern EXPERIMENT_PACKAGE -STUDYKEY STUDY@accession -def "NA" -unit RUN -tab "\n" -element RUN@accession,"&STUDYKEY" >"${OUTDIR}/all_zf_runs_tostudyID.tsv"
+xtract -input "${METADATAXML}" -self -head "run.accession\tsample.accession" -pattern EXPERIMENT_PACKAGE -SAMPLEKEY SAMPLE@accession -def "NA" -unit RUN -tab "\n" -element RUN@accession,"&SAMPLEKEY" >"${OUTDIR}/all_zf_runs_tosample.tsv"
+xtract -input "${METADATAXML}" -self -head "run.accession\texperiment.accession" -pattern EXPERIMENT_PACKAGE -EXPKEY EXPERIMENT@accession -def "NA" -unit RUN -tab "\n" -element RUN@accession,"&EXPKEY" >"${OUTDIR}/all_zf_runs_to_experiment.tsv"
 
-xtract -input "${METADATAXML}" -self -head "study_accession\tbioproject\tbioprojects" \
+xtract -input "${METADATAXML}" -self -head "study.accession\tbioproject\tbioprojects" \
          -pattern STUDY -def "NA" \
          -element STUDY@accession \
          -group STUDY -unit IDENTIFIERS/EXTERNAL_ID -if @namespace -equals "BioProject" -position first -element EXTERNAL_ID \
@@ -38,12 +39,12 @@ xtract -input "${METADATAXML}" -self -head "study_accession\tbioproject\tbioproj
          -group STUDY -unless IDENTIFIERS/EXTERNAL_ID@namespace -contains "BioProject" -lbl "NA" >"${OUTDIR}/all_zf_studyID_tobioprojects.tsv"
 
 ## just run accession and alias
-xtract -input "${METADATAXML}" -head "run_accession\trun_alias" -pattern RUN -def "NA" -tab "\t" -sep ";" -element RUN@accession RUN@alias >"${OUTDIR}/all_zf_runs_to_GSMids.tsv"
+xtract -input "${METADATAXML}" -head "run.accession\trun.alias" -pattern RUN -def "NA" -tab "\t" -sep ";" -element RUN@accession RUN@alias >"${OUTDIR}/all_zf_runs_to_GSMids.tsv"
 #all_zf_runs_to_GSMids
 
 ## study to GEO ids
 ## study info - was JUST USE all_zf_metadata_study.tsv and not all_zf_studies_to_GSEids but running this script first!
-xtract -input "${METADATAXML}" -self -head "study_accession\tstudy_alias" \
+xtract -input "${METADATAXML}" -self -head "study.accession\tstudy.alias" \
          -pattern STUDY -def "NA" \
          -element STUDY@accession STUDY@alias >"${OUTDIR}/all_zf_studies_to_GSEids.tsv"
 
@@ -63,7 +64,9 @@ conda activate single-cell-base
 echo "Now running python commands in zebrafish-metadata-rosetta.py"
 ./zebrafish-metadata-rosetta.py
 
+
 echo "Complete!!"
+
 ## next command is ./download_geo.sh all_zf_listofGSEids.tsv
 ## output is all_geo_families.xml & all_geo_families_cleaned.xml
 echo ""
