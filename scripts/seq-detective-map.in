@@ -149,16 +149,19 @@ mapping_main() {
 	# consider -Q <num> quality threshold?
 	if [[ "${PREQC_STATS}" -eq 1 ]]; then
 		featureCounts -a "${GTF}" -T "${THREADS}" -o "${counts_file}" "${samfile}" 1>/dev/null 2>/dev/null
-	fi
-	# parse output
-	if [[ "${PREQC_STATS}" -eq 1 ]]; then
+		# parse output
 		out="$(json_kv raw "$(parse_mapping "${counts_file}" "${counts_summary_file}" "${READS}")")"
 		rm -f "${samfile}" "${counts_file}" "${counts_summary_file}"
 	fi
 	if [[ "${QC_STATS}" -eq 1 ]]; then
 		# post-qc featurecounts
 		featureCounts -a "${GTF}" -T "${THREADS}" -o "${counts_file_qc}" "${samfile_qc}" 1>/dev/null 2>/dev/null
-		out="${out},$(json_kv qc "$(parse_mapping "${counts_file_qc}" "${counts_summary_file_qc}" "${READS_AFTER}")")"
+		if [[ ${PREQC_STATS} -eq 1 ]]; then
+			out="${out},"
+		else
+			out=""
+		fi
+		out="${out}$(json_kv qc "$(parse_mapping "${counts_file_qc}" "${counts_summary_file_qc}" "${READS_AFTER}")")"
 		rm -f "${samfile_qc}" "${counts_file_qc}" "${counts_summary_file_qc}"
 	fi
 	out="${out},$(json_kv fastp "${fastp_info}")"
