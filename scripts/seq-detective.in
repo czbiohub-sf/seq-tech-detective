@@ -239,7 +239,6 @@ core() {
 		[ ${first} -ne 1 ] && json="${json},${NL}"
 		f_res=$(core-map "${file}" "${HISAT2_INDEX}" "${GTF}" "${OUTFILE}" "${THREADS}" "${QC_STATS}" "${PREQC_STATS}" "${FASTP_PARAMS}" "${FORMAT}")
 		json="${json}${f_res}"
-		rm "${file}"
 		first=0
 	done
 	# close accession block
