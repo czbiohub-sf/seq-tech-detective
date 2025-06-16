@@ -19,8 +19,8 @@ GEOXML=${3:-all_geo_families_cleaned.xml}
 echo ""
 echo "Reading metadata from $METADATAXML, writing intermediates to $OUTDIR/"
 
-# RUN
-xtract -input "${METADATAXML}" -head "run_accession\trun_alias\trun_experiment\tpool_member\ttotal_spots\ttotal_bases\trun_published_date\trun_title\trun_spot_descriptor\trun_processing\trun_read:length\trun_base:count\trun_SRAFile_date\trun_lastSRAFile_date\trun_filename\trun_semantic_name\trun_attributes\trun_enafirstpublic_date\trun_enalastupdate_date" \
+# RUN - note we will split read_lengths and base_counts AFTER during processing step...
+xtract -input "${METADATAXML}" -head "run.accession\trun.alias\trun.experiment\trun.pool_member\trun.total_spots\trun.total_bases\trun.published_date\trun.title\trun.spot_descriptor\trun.processing\trun.read_lengths\trun.base_counts\trun.SRAFile_date\trun.lastSRAFile_date\trun.filename\trun.semantic_name\trun.attributes\trun.enafirstpublic_date\trun.enalastupdate_date" \
 	-pattern RUN -def "NA" -tab "\t" -sep ";" \
 	-element RUN@accession RUN@alias \
 	-element EXPERIMENT_REF@accession Pool/Member@accession \
@@ -47,7 +47,7 @@ xtract -input "${METADATAXML}" -head "run_accession\trun_alias\trun_experiment\t
 	>"${OUTDIR}/all_zf_metadata_run.tsv"
 
 # EXPERIMENT
-xtract -input "${METADATAXML}" -self -head "experiment_accession\texperiment_alias\tstudy_ref\texperiment_title\texperiment_design_description\texperiment_library_name\texperiment_library_strategy\texperiment_library_source\texperiment_library_selection\texperiment_library_construction_protocol\texperiment_library_layout\texperiment_platform\texperiment_instrument_model\texperiment_spot_descriptor\texperiment_attributes\texperiment_enafirstpublic_date" \
+xtract -input "${METADATAXML}" -self -head "experiment.accession\texperiment.alias\texperiment.study_ref\texperiment.title\texperiment.design_description\texperiment.library_name\texperiment.library_strategy\texperiment.library_source\texperiment.library_selection\texperiment.library_construction_protocol\texperiment.library_layout\texperiment.platform\texperiment.instrument_model\texperiment.spot_descriptor\texperiment.attributes\texperiment.enafirstpublic_date" \
 	-pattern EXPERIMENT -def "NA" \
 	-element EXPERIMENT@accession EXPERIMENT@alias \
 	-element STUDY_REF@accession \
@@ -66,7 +66,7 @@ xtract -input "${METADATAXML}" -self -head "experiment_accession\texperiment_ali
 	>"${OUTDIR}/all_zf_metadata_experiment.tsv"
 
 # SAMPLE ENA first public ENA last update
-xtract -input "${METADATAXML}" -self -head "sample_accession\tsample_alias\tsample_title\tsample_description\tsample_attributes\tsample_enafirstpublic_date\tsample_enalastupdate_date\tsample_enafirstpublic2_date\tsample_enalastupdate2_date\tsample_insdclastupdate_date\tsample_insdcfirstpublic_date\tsample_centername" \
+xtract -input "${METADATAXML}" -self -head "sample.accession\tsample.alias\tsample.title\tsample.description\tsample.attributes\tsample.enafirstpublic_date\tsample.enalastupdate_date\tsample.enafirstpublic2_date\tsample.enalastupdate2_date\tsample.insdclastupdate_date\tsample.insdcfirstpublic_date\tsample.centername" \
 	-pattern SAMPLE -def "NA" \
 	-element SAMPLE@accession SAMPLE@alias \
 	-element TITLE \
@@ -90,7 +90,7 @@ xtract -input "${METADATAXML}" -self -head "sample_accession\tsample_alias\tsamp
 	>"${OUTDIR}/all_zf_metadata_sample0.tsv"
 
 # STUDY
-xtract -input "${METADATAXML}" -self -head "study_accession\tstudy_alias\tstudy_title\tstudy_type\tstudy_type_other\tstudy_abstract\tstudy_attributes\tstudy_enafirstpublic_date\tstudy_enalastupdate_date\tstudy_PMIDs" \
+xtract -input "${METADATAXML}" -self -head "study.accession\tstudy.alias\tstudy.title\tstudy.type\tstudy.type_other\tstudy.abstract\tstudy.attributes\tstudy.enafirstpublic_date\tstudy.enalastupdate_date\tstudy.PMIDs" \
 	-pattern STUDY -def "NA" \
 	-element STUDY@accession STUDY@alias \
 	-group DESCRIPTOR -def "NA" -element STUDY_TITLE STUDY_TYPE@existing_study_type STUDY_TYPE@new_study_type STUDY_ABSTRACT \
@@ -114,12 +114,12 @@ echo "Reading GEO metadata from $GEOXML, writing intermediates to $OUTDIR/"
 
 
 # GEO
-xtract -input "${GEOXML}" -head "GEO_accession\tGEO_title\tGEO_dataprocessing\tGEO_submission_date\tGEO_release_date\tGEO_lastupdate_date\tGEO_source\tGEO_treatmentprotocol\tGEO_extractprotocol\tGEO_growthprotocol\tGEO_characteristics" \
+xtract -input "${GEOXML}" -head "GEOsample.accession\tGEOsample.title\tGEOsample.dataprocessing\tGEOsample.submission_date\tGEOsample.release_date\tGEOsample.lastupdate_date\tGEOsample.source\tGEOsample.treatmentprotocol\tGEOsample.extractprotocol\tGEOsample.growthprotocol\tGEOsample.characteristics" \
         -pattern Sample -def "NA" -tab "\t" -sep ";" \
         -element Accession Title Data-Processing \
         -group Status -deq "\t" -def "NA" -element Submission-Date Release-Date Last-Update-Date \
         -group Channel -def "NA" -element Source Treatment-Protocol Extract-Protocol Growth-Protocol \
-        -group Channel/Characteristics -tab "| " -sep ":" -element @tag,Characteristics -deq " | " \
+        -group Channel/Characteristics -tab "|" -sep ":" -element @tag,Characteristics -deq "|" \
 	>"${OUTDIR}/all_zf_metadata_GEO.tsv"
 
 
@@ -142,5 +142,8 @@ echo "Now running python commands in zebrafish-metadata-combining.py"
 
 echo "Complete!!"
 
+
+
 ## follow-up, for Y's technology curation script:
 #./scripts/metadata-annotate.py combine ${OUTDIR}/all_zf_metadata_run.tsv ${OUTDIR}/all_zf_metadata_sample.tsv ${OUTDIR}/all_zf_metadata_experiment.tsv ${OUTDIR}/all_zf_metadata_study.tsv
+
