@@ -64,32 +64,34 @@ def json_to_df(data):
 
     # clean up mapping to a single primary set
     def pl_elvis(col, col2, default):
-        return pl.when(pl.col(col).is_not_null()).then(pl.col(col)).when(pl.col(col2).is_not_null()).then(pl.col(col2)).otherwise(default)
+        return pl.when(pl.col(f"^({col}|{col2})$").first().is_not_null()).then(pl.col(f"^({col}|{col2})$").first()).otherwise(default)
     def pl_pctdiff(a, b):
         return pl.col(a).sub(pl.col(b)).truediv(pl.max_horizontal(a, b)).alias("pctdiff")
 
-    df_1 = df_1.with_columns(
-        pl_elvis("mate1.mapping.qc.mapping_rate", "mate1.mapping.raw.mapping_rate", 0.0).alias("primary.mate1.mapping_rate"),
-        pl_elvis("mate1.mapping.qc.sparsity", "mate1.mapping.raw.sparsity", 1.0).alias("primary.mate1.sparsity"),
-        pl_elvis("mate1.mapping.qc.nofeature_rate", "mate1.mapping.raw.nofeature_rate", 1.0).alias("primary.mate1.nofeature_rate"),
-        pl_elvis("mate1.mapping.qc.avg_gene_size", "mate1.mapping.raw.avg_gene_size", 0.0).alias("primary.mate1.avg_gene_size"),
-        pl.lit(0.0).alias("primary.mapping_diff"),
-    )
+    if not df_1.is_empty():    
+        df_1 = df_1.with_columns(
+            pl_elvis("mate1.mapping.qc.mapping_rate", "mate1.mapping.raw.mapping_rate", 0.0).alias("primary.mate1.mapping_rate"),
+            pl_elvis("mate1.mapping.qc.sparsity", "mate1.mapping.raw.sparsity", 1.0).alias("primary.mate1.sparsity"),
+            pl_elvis("mate1.mapping.qc.nofeature_rate", "mate1.mapping.raw.nofeature_rate", 1.0).alias("primary.mate1.nofeature_rate"),
+            pl_elvis("mate1.mapping.qc.avg_gene_size", "mate1.mapping.raw.avg_gene_size", 0.0).alias("primary.mate1.avg_gene_size"),
+            pl.lit(0.0).alias("primary.mapping_diff"),
+        )
 
-    df_2 = df_2.with_columns(
-        pl_elvis("mate1.mapping.qc.mapping_rate", "mate1.mapping.raw.mapping_rate", 0.0).alias("primary.mate1.mapping_rate"),
-        pl_elvis("mate2.mapping.qc.mapping_rate", "mate2.mapping.raw.mapping_rate", 0.0).alias("primary.mate2.mapping_rate"),
-        pl_elvis("mate1.mapping.qc.sparsity", "mate1.mapping.raw.sparsity", 1.0).alias("primary.mate1.sparsity"),
-        pl_elvis("mate2.mapping.qc.sparsity", "mate2.mapping.raw.sparsity", 1.0).alias("primary.mate2.sparsity"),
-        pl_elvis("mate1.mapping.qc.nofeature_rate", "mate1.mapping.raw.nofeature_rate", 1.0).alias("primary.mate1.nofeature_rate"),
-        pl_elvis("mate2.mapping.qc.nofeature_rate", "mate2.mapping.raw.nofeature_rate", 1.0).alias("primary.mate2.nofeature_rate"),
-        pl_elvis("mate1.mapping.qc.avg_gene_size", "mate1.mapping.raw.avg_gene_size", 0.0).alias("primary.mate1.avg_gene_size"),
-        pl_elvis("mate2.mapping.qc.avg_gene_size", "mate2.mapping.raw.avg_gene_size", 0.0).alias("primary.mate2.avg_gene_size"),
-    )
-    df_2 = df_2.with_columns(
-        pl_pctdiff("primary.mate1.mapping_rate", "primary.mate2.mapping_rate").alias("primary.mapping_diff"),
-        pl_pctdiff("mate1.mapping.fastp.filtering_result.passed_filter_reads", "mate2.mapping.fastp.filtering_result.passed_filter_reads").alias("primary.passed_filter_diff")
-    )
+    if not df_2.is_empty():
+        df_2 = df_2.with_columns(
+            pl_elvis("mate1.mapping.qc.mapping_rate", "mate1.mapping.raw.mapping_rate", 0.0).alias("primary.mate1.mapping_rate"),
+            pl_elvis("mate2.mapping.qc.mapping_rate", "mate2.mapping.raw.mapping_rate", 0.0).alias("primary.mate2.mapping_rate"),
+            pl_elvis("mate1.mapping.qc.sparsity", "mate1.mapping.raw.sparsity", 1.0).alias("primary.mate1.sparsity"),
+            pl_elvis("mate2.mapping.qc.sparsity", "mate2.mapping.raw.sparsity", 1.0).alias("primary.mate2.sparsity"),
+            pl_elvis("mate1.mapping.qc.nofeature_rate", "mate1.mapping.raw.nofeature_rate", 1.0).alias("primary.mate1.nofeature_rate"),
+            pl_elvis("mate2.mapping.qc.nofeature_rate", "mate2.mapping.raw.nofeature_rate", 1.0).alias("primary.mate2.nofeature_rate"),
+            pl_elvis("mate1.mapping.qc.avg_gene_size", "mate1.mapping.raw.avg_gene_size", 0.0).alias("primary.mate1.avg_gene_size"),
+            pl_elvis("mate2.mapping.qc.avg_gene_size", "mate2.mapping.raw.avg_gene_size", 0.0).alias("primary.mate2.avg_gene_size"),
+        )
+        df_2 = df_2.with_columns(
+            pl_pctdiff("primary.mate1.mapping_rate", "primary.mate2.mapping_rate").alias("primary.mapping_diff"),
+            pl_pctdiff("mate1.mapping.fastp.filtering_result.passed_filter_reads", "mate2.mapping.fastp.filtering_result.passed_filter_reads").alias("primary.passed_filter_diff")
+        )
 
     return df_1, df_2
 
@@ -180,13 +182,18 @@ def judge_core(row, cfg):
 
 # core mode: format is filename\tjudgement
 def write_core(cfg, df_1, df_2):
-    judge_core(df_1, cfg)
-    judge_core(df_2, cfg)
+    if not df_1.is_empty():
+        judge_core(df_1, cfg)
+    if not df_2.is_empty():
+        judge_core(df_2, cfg)
 
 if __name__ == "__main__":
     args = get_args()
 
     data = json.load(args.json_file)
+    if isinstance(data, dict):
+        # if we have a single object, wrap it in a list
+        data = [data]
     df_1, df_2 = json_to_df(data)
     if args.b:
         write_core(args, df_1, df_2)
