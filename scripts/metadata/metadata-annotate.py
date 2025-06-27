@@ -30,7 +30,7 @@ class pattern:
         return idxs
 
 def metadata_annotate(file, keep_cols=[]):
-    df = pl.read_csv(file, separator='\t', row_index_name='idx', truncate_ragged_lines=True)
+    df = pl.read_csv(file, separator='\t', row_index_name='idx', truncate_ragged_lines=True, null_values='NA')
 
     # NAME, PATTERN, MAXERRORS
     patterns = [
