@@ -72,7 +72,7 @@ for idx in $(seq "${START}" "${END}"); do
 	for file in ${files}; do
 		# array item per file
 		[ ${first} -ne 1 ] && json="${json},${NL}"
-		f_res=$(seq-detective core "${file}" "${HISAT2_INDEX}" "${GTF}")
+		f_res=$(seq-detective core-map "${file}" "${HISAT2_INDEX}" "${GTF}")
 		json="${json}${f_res}"
 		rm "${file}"
 		first=0

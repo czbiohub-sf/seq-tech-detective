@@ -13,6 +13,7 @@ internal_scripts = [
     'seq-detective-download',
     'seq-detective-fingerprint',
     'seq-detective-map',
+    'judge.py',
 ]
 
 

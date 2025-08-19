@@ -1,7 +1,7 @@
 #!/bin/bash
 #::help
-#: seq-detective-download v0.1.0
-#: module for downloading an SRA accession with a read limit.
+#: seq-detective-download @VERSION@
+#: module for downloading an SRA accession with a read limit.  for internal use only.
 #:    usage: seq-detective-download [-X limit] [-c threads] [-b] <ACCESSION> <types>
 #:
 #:    <types>       Original SRA upload semantic_name(s), e.g. "bam" or "fastq fastq fastq".

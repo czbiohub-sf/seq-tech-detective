@@ -53,6 +53,22 @@ json_kv() {
 	}
 }
 
+# format a json str:float pair
+# $1: str key
+# $2: float value
+json_kv_sf() {
+	KEY="${1}"
+	VALUE="${2}"
+	{
+		if [[ "${VALUE}" == "NA" ]]; then
+			printf "\"%s\": \"NaN\"" "${KEY}"
+		else
+			printf "\"%s\": %.5f" "${KEY}" "${VALUE}"
+		fi
+	}
+}
+
+
 # mapping info to json serialization
 # $1: mapping_rate
 # $2: nofeature_rate
@@ -63,12 +79,17 @@ json_kv() {
 mapping_to_json() {
 	{
 		printf "{"
-		printf "\"mapping_rate\":%.5f," "${1}"
-		printf "\"nofeature_rate\":%.5f," "${2}"
-		printf "\"lowqual_rate\":%.5f," "${3}"
-		printf "\"sparsity\":%.5f," "${4}"
-		printf "\"pos_strand_rate\":%.5f," "${5}"
-		printf "\"avg_gene_size\":%.3f" "${6}"
+		json_kv_sf "mapping_rate" "${1}"
+		printf ","
+		json_kv_sf "nofeature_rate" "${2}"
+		printf ","
+		json_kv_sf "lowqual_rate" "${3}"
+		printf ","
+		json_kv_sf "sparsity" "${4}"
+		printf ","
+		json_kv_sf "pos_strand_rate" "${5}"
+		printf ","
+		json_kv_sf "avg_gene_size" "${6}"
 		printf "}"
 	}
 }
@@ -81,11 +102,12 @@ mapping_main() {
 	GTF="${3}"
 	OUTFILE="${4:-/dev/stdout}"
 	THREADS="${5:-8}"
-	QC_STATS="${6:-0}"
-	READS="${7:-}"
-
+	READS="${6:-}"
+	QC_STATS="${7:-0}"
+	PREQC_STATS="${8:-1}"
+	FASTP_PARAMS=(${9:--x -q 17 -u 15 -n 50 --length_required 2 -p}) # that's one -x
 	HISAT_PARAMS=(--no-temp-splicesite --mm --new-summary --summary-file /dev/null -k 1 -p "${THREADS}")
-	FASTP_PARAMS=(-x -q 17 -u 15 -n 50 --length_required 2 -p)
+
 	FASTP_EXTRACT="{summary:.summary|pick(.before_filtering,.after_filtering|.total_reads,.total_bases,.read1_mean_length,.gc_content),
 	filtering_result:.filtering_result,
 	adapter_cutting:.adapter_cutting,
@@ -96,7 +118,7 @@ mapping_main() {
 	#EX_ADP="--adapter_fasta fastp_adapters.fasta"
 
 	# run fastp first for read stats and warm files
-	if [[ -n "${QC_STATS}" ]]; then
+	if [[ "${QC_STATS}" -eq 1 ]]; then
 		QC_FASTQ="${FASTQ}.fastp.fastq"
 	else
 		QC_FASTQ="/dev/null"
@@ -113,9 +135,11 @@ mapping_main() {
 	counts_file_qc="${FASTQ}.qc.counts"
 	counts_summary_file_qc="${counts_file_qc}.summary"
 	# run pre-qc hisat2
-	hisat2 -x "${HISAT2_INDEX}" -U "${FASTQ}" -S "${samfile}" "${HISAT_PARAMS[@]}" 2>/dev/null
+	if [[ "${PREQC_STATS}" -eq 1 ]]; then
+		hisat2 -x "${HISAT2_INDEX}" -U "${FASTQ}" -S "${samfile}" "${HISAT_PARAMS[@]}" 2>/dev/null
+	fi
 	# possibly run post-qc hisat2
-	if [[ -n "${QC_STATS}" ]]; then
+	if [[ "${QC_STATS}" -eq 1 ]]; then
 		READS_AFTER=$(<<<"${fastp_info}" jq ".filtering_result.passed_filter_reads")
 		hisat2 -x "${HISAT2_INDEX}" -U "${QC_FASTQ}" -S "${samfile_qc}" "${HISAT_PARAMS[@]}" 2>/dev/null
 		rm -f "${QC_FASTQ}"
@@ -123,15 +147,21 @@ mapping_main() {
 
 	# pre-qc featurecounts
 	# consider -Q <num> quality threshold?
-	featureCounts -a "${GTF}" -T "${THREADS}" -o "${counts_file}" "${samfile}" 1>/dev/null 2>/dev/null
-	# parse output
-	out="$(json_kv raw "$(parse_mapping "${counts_file}" "${counts_summary_file}" "${READS}")")"
-	rm -f "${samfile}" "${counts_file}" "${counts_summary_file}"
-
-	if [[ -n "${QC_STATS}" ]]; then
+	if [[ "${PREQC_STATS}" -eq 1 ]]; then
+		featureCounts -a "${GTF}" -T "${THREADS}" -o "${counts_file}" "${samfile}" 1>/dev/null 2>/dev/null
+		# parse output
+		out="$(json_kv raw "$(parse_mapping "${counts_file}" "${counts_summary_file}" "${READS}")")"
+		rm -f "${samfile}" "${counts_file}" "${counts_summary_file}"
+	fi
+	if [[ "${QC_STATS}" -eq 1 ]]; then
 		# post-qc featurecounts
 		featureCounts -a "${GTF}" -T "${THREADS}" -o "${counts_file_qc}" "${samfile_qc}" 1>/dev/null 2>/dev/null
-		out="${out},$(json_kv qc "$(parse_mapping "${counts_file_qc}" "${counts_summary_file_qc}" "${READS_AFTER}")")"
+		if [[ ${PREQC_STATS} -eq 1 ]]; then
+			out="${out},"
+		else
+			out=""
+		fi
+		out="${out}$(json_kv qc "$(parse_mapping "${counts_file_qc}" "${counts_summary_file_qc}" "${READS_AFTER}")")"
 		rm -f "${samfile_qc}" "${counts_file_qc}" "${counts_summary_file_qc}"
 	fi
 	out="${out},$(json_kv fastp "${fastp_info}")"
@@ -143,7 +173,7 @@ mapping_main() {
 # https://gabrielstaples.com/bash-libraries/
 if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	if [[ "$#" -lt 3 ]]; then
-		echo "Usage: $0 <FASTQ> <HISAT2_INDEX> <GTF> [OUTFILE] [THREADS] [QC_STATS] [READS]" 1>&2
+		echo "Usage: $0 <FASTQ> <HISAT2_INDEX> <GTF> [OUTFILE] [THREADS] [READS] [QC_STATS] [RAW_STATS] [FASTP PARAMS]" 1>&2
 	else
 		mapping_main "$@"
 	fi
