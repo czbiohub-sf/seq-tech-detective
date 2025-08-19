@@ -30,7 +30,7 @@ class pattern:
         return idxs
 
 def metadata_annotate(file, keep_cols=[]):
-    df = pl.read_csv(file, separator='\t', row_index_name='idx')
+    df = pl.read_csv(file, separator='\t', row_index_name='idx', truncate_ragged_lines=True, null_values='NA')
 
     # NAME, PATTERN, MAXERRORS
     patterns = [
@@ -71,11 +71,19 @@ def metadata_annotate(file, keep_cols=[]):
         pattern('generic-scrnaseq2', 'single[-_ ]?cell[-_ ]?(RNA[-_ ])?seq(uencing)?', 1),
     ]
     
+    
     # add a new column for each pattern, with the number of matches in the text
+    possible_columns = [
+        "run.accession",
+        "sample.accession",
+        "experiment.accession",
+        "study.accession"]
+    accession_col = next((col for col in possible_columns if col in df.columns), None)
     blank = pl.Series("", [_ for _ in range(len(df))])
     df = df.with_columns(
         **{p.name: blank.replace_strict(p.run(df, file), default=0) for p in patterns}
-    ).unique(subset=['accession'])
+    ).unique(subset=[accession_col])    
+    #).unique(subset=['accession'])
     # sum generic scrnaseq columns into a single column
     sum_cols = [['10x1', '10x2', '10x3'],
                 ['generic-scrnaseq1', 'generic-scrnaseq2'],
@@ -89,8 +97,8 @@ def metadata_annotate(file, keep_cols=[]):
                 ]
     tech_cols = tech_cols + ['10x', 'smartseq', 'generic-scrnaseq']
     keep_cols = keep_cols + tech_cols
-    df.write_csv(f"{file}-annotated.tsv")
-    print(f"{file}-annotated.tsv")
+    df.write_csv(f"{file}-annotated.csv")
+    print(f"{file}-annotated.csv")
     return df.select(keep_cols).shrink_to_fit(), tech_cols  #
 
 if __name__ == "__main__":
@@ -99,17 +107,17 @@ if __name__ == "__main__":
         sys.exit(1)
     
     if sys.argv[1] == "combine":
-        run, tech_cols = metadata_annotate(sys.argv[2], keep_cols=['accession', 'experiment', 'pool_member', 'published_date', 'total_spots', 'read:length', 'semantic_name'])
+        run, tech_cols = metadata_annotate(sys.argv[2], keep_cols=['run.accession', 'run.experiment', 'run.pool_member', 'run.published_date', 'run.total_spots', 'run.read_lengths', 'run.semantic_name'])
         #add "run" suffix to tech columns
         run = run.rename({col: f"{col}_run" for col in tech_cols})
-        samn, __ = metadata_annotate(sys.argv[3], keep_cols=['accession'])
+        samn, __ = metadata_annotate(sys.argv[3], keep_cols=['sample.accession'])
         samn = samn.rename({col: f"{col}_sample" for col in tech_cols})
-        exp, __ = metadata_annotate(sys.argv[4], keep_cols=['accession', 'study', 'library_source', 'platform', 'instrument_model'])
+        exp, __ = metadata_annotate(sys.argv[4], keep_cols=['experiment.accession', 'experiment.study_ref', 'experiment.library_source', 'experiment.platform', 'experiment.instrument_model'])
         exp = exp.rename({col: f"{col}_experiment" for col in tech_cols})
-        study, __ = metadata_annotate(sys.argv[5], keep_cols=['accession'])
+        study, __ = metadata_annotate(sys.argv[5], keep_cols=['study.accession'])
         study = study.rename({col: f"{col}_study" for col in tech_cols})
         # combine the dataframes
-        df = run.join(exp, left_on='experiment', right_on='accession', how='left', suffix='_experiment').join(samn, left_on='pool_member', right_on='accession', how='left', suffix='_sample').join(study, left_on='study', right_on='accession', how='left', suffix='_study')
+        df = run.join(exp, left_on='run.experiment', right_on='experiment.accession', how='left', suffix='_experiment').join(samn, left_on='run.pool_member', right_on='sample.accession', how='left', suffix='_sample').join(study, left_on='experiment.study_ref', right_on='study.accession', how='left', suffix='_study')
         #keep_library_source = ['TRANSCRIPTOMIC', 'METATRANSCRIPTOMIC', 'TRANSCRIPTOMIC_SINGLE_CELL']
         # create new weighted tech column
         df = df.with_columns(
@@ -138,8 +146,9 @@ if __name__ == "__main__":
         ).write_csv("all_metadata_combined.csv")
         print("all_metadata_combined.csv")
         # grab just accession and semantic_name columns
-        df.select(['accession', 'semantic_name']).write_csv("accession_data_for_scan.csv", include_header=False)
+        df.select(['run.accession', 'run.semantic_name']).write_csv("accession_data_for_scan.csv", include_header=False)
         print("accession_data_for_scan.csv")
     else:
         for file in sys.argv[1:]:
             metadata_annotate(file)
+

@@ -1,0 +1,77 @@
+#!/bin/bash
+set -euo pipefail
+
+# metadata
+# assume single experiment (/sra) xml for now
+
+# query every zebrafish transcriptomics ("TRANSCRIPTOMIC" tag is kinda bad doesn't work should be the LibrarySource property)
+
+# esearch -db sra -query 'txid7955[Organism:noexp] ("TRANSCRIPTOMIC" OR "METATRANSCRIPTOMIC" OR "TRANSCRIPTOMIC SINGLE CELL")' | efetch -format xml > zf.xml
+
+METADATAXML=${1:-zf.xml}
+OUTDIR=${2:-intermediate}
+
+# 0) Ensure the output directory exists
+mkdir -p "$OUTDIR"
+
+# …now you can safely write into $OUTDIR…
+# e.g.
+echo ""
+echo "Reading metadata from $METADATAXML, writing intermediates to $OUTDIR/"
+
+
+# xtract: whenever we change the tab format for key-value. we need to use -deq on the next output
+# to eat a queuead field separator
+## for attributes was -tab ";" -sep ":" and first changed to -tab ";" -sep "|"  but need to correct to -tab "|" -sep ":" 
+
+## THE FOLLOWING SCRIPT IS TO PULL FIELDS TO CREATE A 'ROSETTA' KEY FILE TO LINK RUNS, EXPERIMENTS, SAMPLES, STUDIES, BIORPOJECTS, AND GEO IDS
+
+xtract -input "${METADATAXML}" -self -head "run.accession\tstudy.accession" -pattern EXPERIMENT_PACKAGE -STUDYKEY STUDY@accession -def "NA" -unit RUN -tab "\n" -element RUN@accession,"&STUDYKEY" >"${OUTDIR}/all_zf_runs_tostudyID.tsv"
+xtract -input "${METADATAXML}" -self -head "run.accession\tsample.accession" -pattern EXPERIMENT_PACKAGE -SAMPLEKEY SAMPLE@accession -def "NA" -unit RUN -tab "\n" -element RUN@accession,"&SAMPLEKEY" >"${OUTDIR}/all_zf_runs_tosample.tsv"
+xtract -input "${METADATAXML}" -self -head "run.accession\texperiment.accession" -pattern EXPERIMENT_PACKAGE -EXPKEY EXPERIMENT@accession -def "NA" -unit RUN -tab "\n" -element RUN@accession,"&EXPKEY" >"${OUTDIR}/all_zf_runs_to_experiment.tsv"
+
+xtract -input "${METADATAXML}" -self -head "study.accession\tbioproject\tbioprojects" \
+         -pattern STUDY -def "NA" \
+         -element STUDY@accession \
+         -group STUDY -unit IDENTIFIERS/EXTERNAL_ID -if @namespace -equals "BioProject" -position first -element EXTERNAL_ID \
+         -group STUDY -unless IDENTIFIERS/EXTERNAL_ID@namespace -contains "BioProject" -lbl "NA" \
+         -group STUDY -unit IDENTIFIERS/EXTERNAL_ID -if @namespace -equals "BioProject" -sep ':' -tab ';' -element EXTERNAL_ID \
+         -group STUDY -unless IDENTIFIERS/EXTERNAL_ID@namespace -contains "BioProject" -lbl "NA" >"${OUTDIR}/all_zf_studyID_tobioprojects.tsv"
+
+## just run accession and alias
+xtract -input "${METADATAXML}" -head "run.accession\trun.alias" -pattern RUN -def "NA" -tab "\t" -sep ";" -element RUN@accession RUN@alias >"${OUTDIR}/all_zf_runs_to_GSMids.tsv"
+#all_zf_runs_to_GSMids
+
+## study to GEO ids
+## study info - was JUST USE all_zf_metadata_study.tsv and not all_zf_studies_to_GSEids but running this script first!
+xtract -input "${METADATAXML}" -self -head "study.accession\tstudy.alias" \
+         -pattern STUDY -def "NA" \
+         -element STUDY@accession STUDY@alias >"${OUTDIR}/all_zf_studies_to_GSEids.tsv"
+
+## now running python commands in zebrafish-metadata-rosetta.py - this didn't work initially, could source conda first but better to run module load anaconda
+## these are CZB HPC-specific, BTW
+
+echo "Now loading python for zebrafish-metadata-rosetta.py"
+## try loading anaconda first??
+module load anaconda
+module load data.science
+
+# now activate single-cell-base
+#conda activate /hpc/user_apps/data.science/conda_envs/single-cell-base
+conda activate single-cell-base
+
+# Now run your script - make sure you have done this: chmod +x zebrafish-metadata-rosetta.py
+echo "Now running python commands in zebrafish-metadata-rosetta.py"
+./zebrafish-metadata-rosetta.py
+
+
+echo "Complete!!"
+
+## next command is ./download_geo.sh all_zf_listofGSEids.tsv
+## output is all_geo_families.xml & all_geo_families_cleaned.xml
+echo ""
+echo "Next step is to download GEO records from recently made all_zf_listofGSEids.tsv"
+echo "To do this run this command:"
+echo ""
+echo "./download_geo.sh all_zf_listofGSEids.tsv"
+echo "Note that to download thousands of records may take minutes to hours."
