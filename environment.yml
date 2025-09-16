@@ -5,7 +5,7 @@ channels:
 dependencies:
   - conda-forge::bc
   - conda-forge::cxx-compiler=1.9.0
-  - conda-forge::jq
+  - conda-forge::jq>=1.7
   - conda-forge::python>=3.10
   - conda-forge::polars=1.16.*
   - conda-forge::unzip=6.0
