@@ -9,6 +9,13 @@ esearch -db sra -query 'txid7955[Organism:noexp] ("TRANSCRIPTOMIC" OR "METATRANS
 ```
 And would result in large zf.xml file.
 
+Also adding Bioproject-specific XML for Submission info:
+```
+esearch -db bioproject -query 'txid7955[Organism:noexp]' | efetch -format xml > zf_bioproject.xml
+```
+Results in zf_bioproject.xml.
+
+
 ## Step 1: Script + processing for initial 'Rosetta' file to join intermediate metadata outputs
 Script:
 ```
@@ -40,3 +47,23 @@ The script runs more complete NCBI `xtract` commands that create intermediate .t
 These steps combine all of the intermediate .tsv files (as well as calculate an earliest date), resulting in the combined output
  `all_zf_datescurated_withGEO.tsv` 
 
+## Step 4: Script to curate technology.
+
+Setup & script:
+```
+module load anaconda
+module load data.science
+conda activate single-cell-base
+./metadata-annotate.py combine all_zf_metadata2_run.tsv all_zf_metadata2_sample.tsv all_zf_metadata2_experiment.tsv all_zf_metadata2_study.tsv
+```
+This step adds a curated technology column
+
+## Step 5: Jupyter Notebook to curate tissue type & developmental stage.
+
+```
+metadata_curatingdevstagetissue.ipynb
+```
+
+Notebook creates curated calls for fine & coarse tissue and devstage (columns), also incorporating tech column from step 4
+Output: 
+all_zf_dates_devstage_tissue_tech_curated_withGEO.tsv & all_zf_dates_devstage_tissue_tech_curated_withGEO_morecolumnsandintermediates.tsv
