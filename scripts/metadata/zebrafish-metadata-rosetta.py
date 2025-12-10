@@ -18,6 +18,9 @@ metadata_studytoprj = pl.read_csv(f"{input_folder}/all_zf_studyID_tobioprojects.
 metadata_runstosample = pl.read_csv(f"{input_folder}/all_zf_runs_tosample.tsv", separator="\t")
 metadata_runstoexp = pl.read_csv(f"{input_folder}/all_zf_runs_to_experiment.tsv", separator="\t")
 
+## adding new submittedby
+metadata_runstosubmitter = pl.read_csv(f"{input_folder}/all_zf_runs_to_submitter.tsv", separator="\t")
+
 # Remove 'bioprojects' if it exists and deduplicate
 if 'bioprojects' in metadata_studytoprj.columns:
     metadata_studytoprj = metadata_studytoprj.drop('bioprojects')
@@ -29,7 +32,11 @@ metadata_rosetta1 = metadata_runstostudy.join(metadata_studytoprj, on="study.acc
 
 # Full joins with sample and experiment metadata
 metadata_rosetta2 = metadata_rosetta1.join(metadata_runstosample, on="run.accession", how="left")
-metadata_rosetta3 = metadata_rosetta2.join(metadata_runstoexp, on="run.accession", how="left")
+
+## adding new submittedby
+metadata_rosetta2b = metadata_rosetta2.join(metadata_runstosubmitter, on="run.accession", how="left")
+
+metadata_rosetta3 = metadata_rosetta2b.join(metadata_runstoexp, on="run.accession", how="left")
 
 # Load and filter GSE metadata
 metadata_studiestoGSEids = pl.read_csv(f"{input_folder}/all_zf_studies_to_GSEids.tsv", separator="\t")

@@ -89,6 +89,19 @@ xtract -input "${METADATAXML}" -self -head "sample.accession\tsample.alias\tsamp
 	-group SAMPLE -unless SAMPLE_ATTRIBUTE/TAG -equals "INSDC center name" -lbl "NA" \
 	>"${OUTDIR}/all_zf_metadata_sample0.tsv"
 
+
+# ADDING SUBMITTER
+# xtract -input "${METADATAXML}" -self -head "submission.accession\tsubmission.source" \
+# 	-pattern SUBMISSION -def "NA" \
+# 	-element SUBMISSION@accession SUBMISSION@lab_name >"${OUTDIR}/all_zf_metadata_submission.tsv"
+## adding both labname and center name if there
+xtract -input "${METADATAXML}" -self -head "submission.accession\tsubmission.srasource" \
+    -pattern SUBMISSION -def "NA" \
+    -element SUBMISSION@accession -sep "|" -element SUBMISSION@center_name,SUBMISSION@lab_name >"${OUTDIR}/all_zf_metadata_submission0.tsv"
+
+## remove duplicates
+awk '!seen[$0]++' "${OUTDIR}/all_zf_metadata_submission0.tsv" > "${OUTDIR}/all_zf_metadata_submission.tsv"
+
 # STUDY
 xtract -input "${METADATAXML}" -self -head "study.accession\tstudy.alias\tstudy.title\tstudy.type\tstudy.type_other\tstudy.abstract\tstudy.attributes\tstudy.enafirstpublic_date\tstudy.enalastupdate_date\tstudy.PMIDs" \
 	-pattern STUDY -def "NA" \
@@ -123,6 +136,14 @@ xtract -input "${GEOXML}" -head "GEOsample.accession\tGEOsample.title\tGEOsample
 	>"${OUTDIR}/all_zf_metadata_GEO.tsv"
 
 
+## deprioritized? GEO-study level
+# xtract -input "${GEOXML}" -head "GEOstudy.accession\tGEOstudy.title\tGEOstudy.overalldesign" \
+#         -pattern Series -def "NA" -tab "\t" -sep ";" \
+#         -element Series@iid Title Overall-Design >"${OUTDIR}/all_zf_metadata_GEO.tsv"
+## Yttria would like to exclude "missing" from attributes? maybe try -unless with -or
+## -or ArticleID@IdType -equals pmc 
+## -group STUDY -unless STUDY_ATTRIBUTE -or STUDY_ATTRIBUTE/TAG -equals "missing" -or STUDY_ATTRIBUTE/TAG -equals "not applicable" -or STUDY_ATTRIBUTE/TAG -equals "not collected" -or STUDY_ATTRIBUTE/TAG -equals "not determined" -deq "\t" -lbl "NA" \
+
 ## now running python commands in zebrafish-metadata-combining.py - first run module load anaconda
 ## these are CZB HPC-specific, BTW
 
@@ -142,8 +163,7 @@ echo "Now running python commands in zebrafish-metadata-combining.py"
 
 echo "Complete!!"
 
-
-
 ## follow-up, for Y's technology curation script:
 #./scripts/metadata-annotate.py combine ${OUTDIR}/all_zf_metadata_run.tsv ${OUTDIR}/all_zf_metadata_sample.tsv ${OUTDIR}/all_zf_metadata_experiment.tsv ${OUTDIR}/all_zf_metadata_study.tsv
-
+## copied into //hpc/projects/balla_group/sra_experiments/SRA_metadata/dec2025_75k_submitteradded/intermediate
+#./metadata-annotate.py combine all_zf_metadata2_run.tsv all_zf_metadata2_sample.tsv all_zf_metadata2_experiment.tsv all_zf_metadata2_study.tsv

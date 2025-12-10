@@ -8,8 +8,14 @@ set -euo pipefail
 
 # esearch -db sra -query 'txid7955[Organism:noexp] ("TRANSCRIPTOMIC" OR "METATRANSCRIPTOMIC" OR "TRANSCRIPTOMIC SINGLE CELL")' | efetch -format xml > zf.xml
 
+
+## adding bioproject xml to pull more submitter fields (when otherwise only GEO)
+#esearch -db bioproject -query 'txid7955[Organism:noexp]' | efetch -format xml > zf_bioproject.xml
+
+
 METADATAXML=${1:-zf.xml}
 OUTDIR=${2:-intermediate}
+BIOPROJECTXML=${3:-zf_bioproject.xml}
 
 # 0) Ensure the output directory exists
 mkdir -p "$OUTDIR"
@@ -37,6 +43,19 @@ xtract -input "${METADATAXML}" -self -head "study.accession\tbioproject\tbioproj
          -group STUDY -unless IDENTIFIERS/EXTERNAL_ID@namespace -contains "BioProject" -lbl "NA" \
          -group STUDY -unit IDENTIFIERS/EXTERNAL_ID -if @namespace -equals "BioProject" -sep ':' -tab ';' -element EXTERNAL_ID \
          -group STUDY -unless IDENTIFIERS/EXTERNAL_ID@namespace -contains "BioProject" -lbl "NA" >"${OUTDIR}/all_zf_studyID_tobioprojects.tsv"
+
+## adding new submittedby
+xtract -input "${METADATAXML}" -self -head "run.accession\tsubmission.accession" -pattern EXPERIMENT_PACKAGE -SUBMITTERKEY SUBMISSION@accession -def "NA" -unit RUN -tab "\n" -element RUN@accession,"&SUBMITTERKEY" >"${OUTDIR}/all_zf_runs_to_submitter.tsv"
+
+## NEW BIOPROJECT XML PULLING BIOPROJECT ID & BIOPRJ SUBMISSION INFO
+xtract -input "${BIOPROJECTXML}" -self -head "bioproject\tsubmission.bioprojectsource" \
+    -pattern DocumentSummary -def "NA" \
+    -element ArchiveID@accession Organization/Name \
+    > "${OUTDIR}/all_zf_bioproject_to_org0.tsv"
+# remove extra tab characters
+# Replace any tabs within fields with spaces (after the first tab)
+# awk -F'\t' 'BEGIN{OFS="\t"} {gsub(/\t/, " ", $2); print $1, $2}' "${OUTDIR}/all_zf_bioproject_to_org0.tsv" > "${OUTDIR}/all_zf_bioproject_to_org.tsv"
+sed 's/\t/ /2g' "${OUTDIR}/all_zf_bioproject_to_org0.tsv" > "${OUTDIR}/all_zf_bioproject_to_org.tsv"
 
 ## just run accession and alias
 xtract -input "${METADATAXML}" -head "run.accession\trun.alias" -pattern RUN -def "NA" -tab "\t" -sep ";" -element RUN@accession RUN@alias >"${OUTDIR}/all_zf_runs_to_GSMids.tsv"
