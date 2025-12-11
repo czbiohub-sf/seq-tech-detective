@@ -66,5 +66,8 @@ metadata_curatingdevstagetissue.ipynb
 ```
 
 Notebook creates curated calls for fine & coarse tissue and devstage (columns), also incorporating tech column from step 4
-Output: 
-all_zf_dates_devstage_tissue_tech_curated.tsv & all_zf_dates_devstage_tissue_tech_curated_rawcolumns.tsv
+Outputs: 
+```
+all_zf_dates_devstage_tissue_tech_curated.tsv
+all_zf_dates_devstage_tissue_tech_curated_rawcolumns.tsv
+```
