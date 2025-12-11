@@ -54,6 +54,7 @@ Setup & script:
 module load anaconda
 module load data.science
 conda activate single-cell-base
+module load ugrep
 ./metadata-annotate.py combine all_zf_metadata2_run.tsv all_zf_metadata2_sample.tsv all_zf_metadata2_experiment.tsv all_zf_metadata2_study.tsv
 ```
 This step adds a curated technology column
