@@ -10,7 +10,7 @@ main_folder = "."
 intermediate_folder = "./intermediate"
 
 # Helper to load TSVs treating "NA" as nulls
-def read_tsv_with_na(path):
+def read_tsv_with_na(path, encoding="utf-8"):
     return pl.read_csv(path, separator="\t", null_values=["NA"])
 
 ## function to force dates!!
@@ -38,17 +38,33 @@ metadata_sample = read_tsv_with_na(f"{intermediate_folder}/all_zf_metadata_sampl
 metadata_exp = read_tsv_with_na(f"{intermediate_folder}/all_zf_metadata_experiment.tsv")
 metadata_run = read_tsv_with_na(f"{intermediate_folder}/all_zf_metadata_run.tsv")
 
+## adding new submittedby
+metadata_submitter = read_tsv_with_na(f"{intermediate_folder}/all_zf_metadata_submission.tsv")
+
 # Join all metadata layers
 metadata_join1 = metadata_rosetta5.join(metadata_run, on="run.accession", how="left")
 metadata_join2 = metadata_join1.join(metadata_exp, on="experiment.accession", how="left")
+
 metadata_join3 = metadata_join2.join(metadata_sample, on="sample.accession", how="left")
-metadata_join4 = metadata_join3.join(metadata_study, on="study.accession", how="left")
+
+## adding new submittedby
+metadata_join3b = metadata_join3.join(metadata_submitter, on="submission.accession", how="left")
+
+metadata_join4a = metadata_join3b.join(metadata_study, on="study.accession", how="left")
+
+## also adding more submission info from bioproject xml output
+metadata_bioprjsubmitter = read_tsv_with_na(f"{intermediate_folder}/all_zf_bioproject_to_org.tsv").unique()
+
+metadata_join4 = metadata_join4a.join(metadata_bioprjsubmitter, on="bioproject", how="left")
+#metadata_join4.write_csv(f"{intermediate_folder}/all_zf_metadata_join4btest.tsv", separator="\t", null_value="NA")
 
 # Save cleaned intermediate files
 metadata_study.write_csv(f"{intermediate_folder}/all_zf_metadata2_study.tsv", separator="\t", null_value="NA")
 metadata_sample.write_csv(f"{intermediate_folder}/all_zf_metadata2_sample.tsv", separator="\t", null_value="NA")
 metadata_exp.write_csv(f"{intermediate_folder}/all_zf_metadata2_experiment.tsv", separator="\t", null_value="NA")
 metadata_run.write_csv(f"{intermediate_folder}/all_zf_metadata2_run.tsv", separator="\t", null_value="NA")
+
+metadata_submitter.write_csv(f"{intermediate_folder}/all_zf_metadata2_submission.tsv", separator="\t", null_value="NA")
 
 # Load GEO metadata - note tricky rename here
 metadata_GEO = read_tsv_with_na(f"{intermediate_folder}/all_zf_metadata_GEO.tsv").unique()
@@ -111,6 +127,13 @@ metadata_join5 = metadata_join5.with_columns([
     pl.col("bioprj").str.replace_all("SRP00", "PRJXX").alias("bioproject")
 ])
 metadata_join5 = metadata_join5.drop("bioprj")
+
+# Relocate bioproject after study_accession - skip
+# sa_idx = metadata_join5.columns.index("study_accession")
+# reordered = metadata_join5.columns[:sa_idx + 1] + ["bioproject"] + [
+#     c for c in metadata_join5.columns if c not in {"study_accession", "bioproject"}
+# ]
+# metadata_join5 = metadata_join5.select(reordered)
 
 # Sort by bioproject
 metadata_join5 = metadata_join5.sort("bioproject")
@@ -194,13 +217,35 @@ metadata_join5b = metadata_join5b.drop(["run_read_lengths_split", "run_base_coun
 ## replace 5 with 5b
 metadata_join5 = metadata_join5b
 
+# Final desired column order (from R) UPDATE THESE WITH JUNE 12 ORDER AND NEW NAMES
+# desired_order = [
+#     "run_accession", "study_accession", "bioproject", "study_title", "sample_accession",
+#     "experiment_accession", "earliest_date", "run_title", "run_alias", "run_attributes",
+#     "sample_description", "sample_title", "sample_centername", "sample_alias", "sample_attributes",
+#     "experiment_title", "experiment_alias", "experiment_library_name", "experiment_design_description",
+#     "experiment_library_construction_protocol", "experiment_attributes", "run_base:count",
+#     "run_filename", "run_read:length", "run_semantic_name", "total_bases", "total_spots",
+#     "experiment_library_strategy", "experiment_library_source", "experiment_library_selection",
+#     "experiment_library_layout", "experiment_platform", "experiment_instrument_model",
+#     "experiment_spot_descriptor", "study_alias", "study_type", "study_abstract", "study_attributes",
+#     "study_PMIDs", "GEO_accession", "GEO_title", "GEO_dataprocessing",
+#     "GEO_source", "GEO_treatmentprotocol", "GEO_extractprotocol", "GEO_growthprotocol",
+#     "GEO_characteristics", "GEO_studyID", "GEO_sampleID_withrun", "run_experiment",
+#     "pool_member", "study_ref", "run_enafirstpublic_date", "run_enalastupdate_date", "run_lastSRAFile_date",
+#     "run_published_date", "run_SRAFile_date", "sample_enafirstpublic_date",
+#     "sample_enafirstpublic2_date", "sample_enalastupdate_date", "sample_enalastupdate2_date",
+#     "sample_insdcfirstpublic_date", "sample_insdclastupdate_date", "study_enafirstpublic_date",
+#     "study_enalastupdate_date", "GEO_submission_date", "GEO_release_date", "GEO_lastupdate_date"
+# ]
 
+## adding two new columns submission.accession & submission.source and a third: submission.srasource & submission.bioprojectsource
 desired_order = [
     "run.accession", "study.accession", "bioproject", "study.title", "sample.accession",
     "experiment.accession", "earliest_date", "run.title", "run.alias", "run.attributes",
     "experiment.title", "experiment.alias", "experiment.library_name", "experiment.design_description",
     "experiment.library_construction_protocol", "experiment.attributes", "sample.description",
-    "sample.title", "sample.alias", "sample.attributes", "sample.centername", "run.filename",
+    "sample.title", "sample.alias", "sample.attributes", "sample.centername", "submission.bioprojectsource", 
+    "submission.srasource", "submission.accession", "run.filename",
     "run.semantic_name", "run.total_bases", "run.total_spots", "experiment.library_strategy",
     "experiment.library_source", "experiment.library_selection", "experiment.library_layout",
     "experiment.platform", "experiment.instrument_model", "experiment.spot_descriptor", "study.alias",
@@ -224,3 +269,8 @@ metadata_join5 = metadata_join5.select(final_columns)
 
 # Write final result
 metadata_join5.write_csv(f"{main_folder}/all_zf_datescurated_withGEO.tsv", separator="\t", null_value="NA")
+
+#     "study_PMIDs", "GEO_accession", "GEO_sampleID_withrun", "GEO_studyID", "run_experiment",
+#     "pool_member", "study_ref", "GEO_title", "GEO_dataprocessing", "GEO_source",
+#     "GEO_treatmentprotocol", "GEO_extractprotocol", "GEO_growthprotocol", "GEO_characteristics",
+#     "run_enafirstpublic_date", "run_enalastupdate_date", "run_lastSRAFile_date",
