@@ -59,16 +59,19 @@ module load ugrep
 ```
 This step adds a curated technology column
 
-## Step 5: Jupyter Notebook to curate tissue type & developmental stage.
+## Step 5: Jupyter Notebook to curate tissue type & developmental stage (Dec 2025 update).
 
 ```
-metadata_curatingdevstagetissue.ipynb
+metadata_75krun_curatingdevstagetissue_run121225.ipynb
 ```
 
 Notebook creates curated calls for fine & coarse tissue and devstage (columns), also incorporating tech column from step 4
 
-Outputs: 
+Outputs - 2 main & 3 checking unknowns
 ```
 all_zf_dates_devstage_tissue_tech_curated.tsv
 all_zf_dates_devstage_tissue_tech_curated_rawcolumns.tsv
+all_zf_dates_devstage_tissue_tech_curated_unknown.tsv
+all_zf_dates_devstage_tissue_tech_curated_unknowntissue.tsv
+all_zf_dates_devstage_tissue_tech_curated_unknowndevstage.tsv
 ```
