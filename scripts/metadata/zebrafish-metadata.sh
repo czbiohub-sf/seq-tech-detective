@@ -163,7 +163,26 @@ echo "Now running python commands in zebrafish-metadata-combining.py"
 
 echo "Complete!!"
 
-## follow-up, for Y's technology curation script:
-#./scripts/metadata-annotate.py combine ${OUTDIR}/all_zf_metadata_run.tsv ${OUTDIR}/all_zf_metadata_sample.tsv ${OUTDIR}/all_zf_metadata_experiment.tsv ${OUTDIR}/all_zf_metadata_study.tsv
-## copied into //hpc/projects/balla_group/sra_experiments/SRA_metadata/dec2025_75k_submitteradded/intermediate
-#./metadata-annotate.py combine all_zf_metadata2_run.tsv all_zf_metadata2_sample.tsv all_zf_metadata2_experiment.tsv all_zf_metadata2_study.tsv
+## Manual follow-up steps (see Metadata.md for full details):
+##
+## Step 4 — annotate technology/platform/selection/etc. (requires ugrep module):
+##   module load ugrep
+##   ./metadata-annotate.py fromcombined all_zf_datescurated_withGEO.tsv
+##   # outputs: full_metadata_combined.csv, annotated_metadata_combined.csv
+##
+## Step 5 — curate tissue type & developmental stage (Jupyter notebook, manual):
+##   metadata_75krun_curatingdevstagetissue_run121225.ipynb
+##   # outputs: all_zf_dates_devstage_tissue_tech_curated.tsv
+##
+## Step 6 — join annotation columns into final curated TSV:
+##   ./metadata-join-annotations.py \
+##       all_zf_dates_devstage_tissue_tech_curated.tsv \
+##       annotated_metadata_combined.csv
+##   # outputs: all_zf_dates_devstage_tissue_tech_curated_annotated.tsv
+##
+## Step 7 — (optional) add seq-detective metrics and judgements:
+##   ./metadata-add-seqdetective.py \
+##       all_zf_dates_devstage_tissue_tech_curated_annotated.tsv \
+##       <path/to/seqdetective_metrics.parquet> \
+##       --judgement <path/to/seq-detective-judgement-summary-all.txt>
+##   # outputs: all_zf_dates_devstage_tissue_tech_curated_annotated_seqdetective.tsv
