@@ -11,7 +11,7 @@ dependencies:
   - conda-forge::unzip=6.0
   - conda-forge::meson>=1.5.0
   - conda-forge::time=1.9
-  - bioconda::seqspec>=0.3.0 
+  - bioconda::seqspec=0.3.*
   - bioconda::sra-tools
   - bioconda::hisat2=2.2.*
   - bioconda::entrez-direct=22.*
