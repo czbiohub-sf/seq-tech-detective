@@ -88,41 +88,7 @@ Resolved columns added (beyond the original `technology`):
 `selection_class`, `prep_kit`, `layout`, `platform_family`,
 `instrument_generation`, `instrument_model_slug`, `conflict_flags`
 
-## Step 5: Jupyter Notebook to curate tissue type & developmental stage (Dec 2025 update).
-
-
-```
-metadata_75krun_curatingdevstagetissue_run121225.ipynb
-```
-
-Notebook creates curated calls for fine & coarse tissue and devstage (columns), also incorporating tech column from step 4
-
-Outputs - 2 main & 3 checking unknowns
-```
-all_zf_dates_devstage_tissue_tech_curated.tsv
-all_zf_dates_devstage_tissue_tech_curated_rawcolumns.tsv
-all_zf_dates_devstage_tissue_tech_curated_unknown.tsv
-all_zf_dates_devstage_tissue_tech_curated_unknowntissue.tsv
-all_zf_dates_devstage_tissue_tech_curated_unknowndevstage.tsv
-```
-
-## Step 6: Join annotation columns into final curated metadata.
-
-```
-./metadata-join-annotations.py \
-    all_zf_dates_devstage_tissue_tech_curated.tsv \
-    annotated_metadata_combined.csv
-```
-
-Joins the resolved classification columns from step 4 into the final curated TSV.
-Any pre-existing annotation columns are replaced (idempotent).
-
-Output:
-```
-all_zf_dates_devstage_tissue_tech_curated_annotated.tsv
-```
-
-## Step 7: (Optional) Add seq-detective metrics.
+## Step 5: Add seq-detective metrics.
 
 If seq-detective output files are available, join their data into the metadata.
 Both sources are optional but at least one must be provided:
@@ -156,3 +122,22 @@ Output:
 ```
 all_zf_dates_devstage_tissue_tech_curated_annotated_seqdetective.tsv
 ```
+
+## Step 6: Jupyter Notebook to curate tissue type & developmental stage (May 2026 update) & join with all_zf_dates_devstage_tissue_tech_curated_annotated_seqdetective.tsv.
+
+```
+metadata_75krun_curatingdevstagetissuetech_run05152026.ipynb
+```
+
+Notebook creates curated calls for fine & coarse tissue and devstage (columns), also incorporating all columns from steps 4 and 5
+
+Outputs - 2 main & 3 checking unknowns
+```
+all_zf_dates_devstage_tissue_tech_curated.tsv
+all_zf_dates_devstage_tissue_tech_curated_rawcolumns.tsv
+all_zf_dates_devstage_tissue_tech_curated_unknown.tsv
+all_zf_dates_devstage_tissue_tech_curated_unknowntissue.tsv
+all_zf_dates_devstage_tissue_tech_curated_unknowndevstage.tsv
+```
+
+
