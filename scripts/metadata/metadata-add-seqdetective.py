@@ -142,7 +142,8 @@ def main() -> None:
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    meta = pl.read_csv(args.metadata, separator='\t', infer_schema_length=0)
+    meta = pl.read_csv(args.metadata, infer_schema_length=0)
+    #meta = pl.read_csv(args.metadata, separator='\t', infer_schema_length=0)
 
     run_acc_col = next(
         (c for c in ('run.accession', 'accession') if c in meta.columns),
