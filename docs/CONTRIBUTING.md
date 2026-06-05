@@ -1,10 +1,7 @@
 <!-- omit in toc -->
 # Contributing to Seq-Detective
 
-First off, thanks for thinking about contributing!
-
-Seq-Detective is currently pre-release code, and thus many areas,
-including documentation and maintainer information, may be rough.
+Thanks for thinking about contributing!
 
 <!-- omit in toc -->
 ## Table of Contents
@@ -22,227 +19,156 @@ including documentation and maintainer information, may be rough.
 - [Shell script style guide](#shell-script-style-guide)
 
 ## Code of Conduct
-TODO
 
+We expect contributors to interact professionally and in good faith.  Open an issue or contact the
+maintainers if you encounter conduct you believe is inappropriate.
 
 ## I Have a Question
-> If you want to ask a question, we assume that you have read the available [Documentation](https://github.com/czbiohub-sf/seq-tech-detective/tree/docs).
 
-Before you ask a question, it is best to search for existing
-[Issues](https://github.com/czbiohub-sf/seq-tech-detective/issues) that might help you. In case you
-have found a suitable issue and still need clarification, you can write your question in this
-issue. It is also advisable to search the internet for answers first. 
-
-If you then still feel the need to ask a question and need clarification, we recommend the following:
+Before asking a question, search the existing
+[Issues](https://github.com/czbiohub-sf/seq-tech-detective/issues) — your question may already be
+answered.  If not:
 
 - Open an [Issue](https://github.com/czbiohub-sf/seq-tech-detective/issues/new).
 - Provide as much context as you can about what you're running into.
-- Provide project and platform versions (OS, CPU architecture), depending on what seems relevant.
+- Include platform and version information (OS, CPU architecture, tool versions) as relevant.
 
-
-More open-ended project discussions should occur in [internal slack].
-> When this repository goes public, we may open GitHub Discussions as a project discussion space.
+Open-ended project discussions are welcome in
+[GitHub Discussions](https://github.com/czbiohub-sf/seq-tech-detective/discussions).
 
 ## I Want To Contribute
 
 ### Reporting Bugs
 
-<!-- omit in toc -->
-#### Before Submitting a Bug Report
-TODO: describe how to access basic repro and logging information 
+Before submitting a bug report, reproduce the issue with a minimal example if possible.  When
+opening the issue, include:
 
+- The command you ran and the full output (stdout and stderr).
+- Your OS, CPU architecture, and the version of each relevant tool (hisat2, featureCounts, fastp,
+  Python, polars).
+- A FASTQ sample or SRA accession that reproduces the problem, if you are able to share one.
 
 ### Suggesting Enhancements
 
-This section guides you through submitting an enhancement suggestion for Seq-Detective, **including
-completely new features and minor improvements to existing functionality**. Following these
-guidelines will help maintainers and the community to understand your suggestion and find related
-suggestions. 
-
-<!-- omit in toc -->
-#### Before Submitting an Enhancement/Feature Request
-
-- Make sure that you are using the latest version.
-- Read the [documentation](https://github.com/czbiohub-sf/seq-tech-detective/tree/docs) carefully
-  and find out if the functionality is already covered, maybe by an individual configuration.
-- Perform a [search](https://github.com/czbiohub-sf/seq-tech-detective/issues) to see if the
-  enhancement has already been suggested. If it has, add a comment to the existing issue instead of
-  opening a new one.
-- Find out whether your idea fits with the scope and aims of the project. It's up to you to make a
-  strong case to convince the project's developers of the merits of this feature. Keep in mind that
-  we want features that will be useful to the majority of our users and not just a small subset. If
-  you're just targeting a minority of users, consider writing a third-party tool.
-
-<!-- omit in toc -->
-#### How Do I Submit a Good Enhancement Suggestion?
-
 Enhancement suggestions are tracked as [GitHub issues](https://github.com/czbiohub-sf/seq-tech-detective/issues).
 
-- Use a **clear and descriptive title** for the issue to identify the suggestion.
-- Provide a **step-by-step description of the suggested enhancement** in as many details as
-  possible. 
-- **Describe the current behavior** and **explain which behavior you expected to see instead** and
-  why. At this point you can also tell which alternatives do not work for you. 
-- **Give context for why this enhancement would be useful** to most Seq-Detective users. You may
-  also want to point out the other projects that solved it better and which could serve as
-  inspiration.
-  
-  
-<!-- omit in toc -->
-#### New Sequencing Library Suggestion
+Before submitting:
 
-Seq-Detective aims to support a wide range of sequencing library technologies.  However, there will
-always be new sequencing methods and variations.  If there's something you think we missed, submit
-an [issue](https://github.com/czbiohub-sf/seq-tech-detective/issues)!
+- Confirm you are on the latest version.
+- Search for existing issues covering the same suggestion.
+- Consider whether the enhancement fits the scope of the project (see below).
 
-Make sure to follow the points below when requesting support for a new sequencing library.
+When submitting:
 
-- Gather as much information as possible about the technology beforehand.
- - Name
- - Original Publication
- - Other documentation, e.g. [scg lib structs entry](https://teichlab.github.io/scg_lib_structs/)
-   or [seqspec](https://igvf.github.io/seqspec/) or original research.
- - Other information that may be helpful to implementation: barcode onlists, strand bias, error
-   rate, prevalence of use, canonical processing tools, even relation to other technologies can
-   be useful!
-- **Provide links to (ideally multiple, inter-species) example FASTQ in the wild (usually SRA runs)**
-- For more obscure technology, justifying a particular use case may help with prioritization (for
-  example, some sequencing techniques are prominent in a specific species despite being otherwise
-  unpopular)
+- Use a clear and descriptive title.
+- Describe the current behavior and what you expect instead.
+- Give context for why the change would be useful to other users.
 
-Please note that at this time, Seq-Detective only considers the following categories of sequencing
-technnology to be in scope:
-- **bulk RNA-Seq** available as FASTA or FASTQ
-- **single-cell RNA-seq** available as FASTA or FASTQ
+#### New Sequencing Library Support — Out of Scope in Core Mode
+
+Full technology classification (identifying specific sequencing chemistries) is not available in
+this release.  New sequencing library fingerprint requests are therefore out of scope for Core Mode
+and will not be acted on at this time.
+
+When broader technology classification is released, the following will be relevant for library
+requests:
+
+- Name and original publication.
+- Other documentation, e.g. a [scg lib structs entry](https://teichlab.github.io/scg_lib_structs/)
+  or [seqspec](https://igvf.github.io/seqspec/) spec.
+- Barcode onlists, strand bias, canonical processing tools, and relation to similar technologies.
+- Links to example FASTQ files in the wild (SRA runs preferred; multiple accessions and species
+  are helpful).
+- Justification for prioritization if the technology is niche.
+
+Seq-Detective considers the following categories of sequencing technology to be in scope:
+
+- **bulk RNA-seq** available as FASTQ
+- **single-cell RNA-seq** available as FASTQ
 
 ### Your First Code Contribution
 
-Unsure where to begin contributing to Seq-Detective? You can start by looking through these `beginner` and `help-wanted` issues:
+- Clone the repository and create a branch off `main`.
+- Make changes; add tests if you are adding a feature or changing behavior.
+- Run `make fmt` and `make lint`; fix all warnings before committing.
+- Follow the [commit message guidelines](#git-commit-messages).
+- Push your branch and open a pull request.
 
-* [Beginner issues][beginner] - issues which should only require a few lines of code, and a test or two.
-* [Help wanted issues][help-wanted] - issues which should be a bit more involved than `beginner` issues.
-
-<!-- omit in toc -->
-#### Local development
-briefly:
-- clone the repository
-- create a branch
-- make changes (remember to add tests, if adding a new feature or changing behavior)
-- run `make fmt` and `make lint`.  fix and repeat until no warnings are triggered by your code.
-- commit your changes, trying to follow the [commit message guidelines](#commit-guidelines)
-- push your changes
-- open a pull request
 ```bash
 git clone git@github.com:czbiohub-sf/seq-tech-detective.git
 cd seq-tech-detective
-# for every change branch:
-git switch main
-git pull
+git switch main && git pull
 git checkout -b <branch-name>
-# make and test changes (remember to add tests, if adding a new feature or changing behavior)
-# (for C, meson changes:)
+# make and test changes
 make fmt
 make lint
-# commit changes, following commit message guidelines
-# (git commit --amend or git rebase -i to correct minor mistakes per commit before pushing)
-# (if main has had possibly conflicting history since branch, resolve conflicts with git rebase origin main)
 git push origin <branch-name>
-# then, open a pull request!
+# then open a pull request
 ```
 
 ### Pull Requests
 
-Please follow these steps to have your contribution considered by the maintainers:
+Follow the style guides before requesting review.  Reviewers may ask for additional changes,
+tests, or design work before a PR is accepted.
 
-1. Follow the [styleguides](#styleguides)
-
-While the prerequisites above must be satisfied prior to having your pull request reviewed, the
-reviewer(s) may ask you to complete additional design work, tests, or other changes before your
-pull request can be ultimately accepted.
-
-<!-- omit in toc -->
 #### Merging
 
-Pull requests (PRs) are either squashed or rebased onto upstream:
- - Internal PRs are usually rebased
- - PRs with discussion are usually squashed
- - PRs with many (> 4) commits for a single task are usually squashed
+- Internal PRs are usually rebased.
+- PRs with discussion are usually squashed.
+- PRs with more than four commits for a single task are usually squashed.
 
 ## Style Guides
 
 ### Git Commit Messages
 
-We (loosely) follow [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/)
+We (loosely) follow [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
-- Limit the first line to 80 characters or less
-- Start the commit message with an appropriate change type:
- - `feat:` for feature additions
- - `fix:` for bug behavior fixes
- - `perf:` for performance optimization
- - `chore:` for code hygiene, cleanup, refactoring work
- - `test:` for test additions
- - `docs:` for documentation improvements
-- A scope may be provided to a commit’s type, to provide additional contextual information and is
-  contained within parenthesis, e.g., `feat(fingerprints): add inDrop variant used by lab A`
-- For a single commit with multiple change categories, first line is for the highest rank.  then,
-  enumerate other changes in the commit body, following conventional commit format.
-- Reference issues and pull requests liberally after the first line
-- Use the present tense ("Add feature" not "Added feature")
-- Use the imperative mood ("Move cursor to..." not "Moves cursor to...")
+- Limit the first line to 80 characters.
+- Start with a change type: `feat:`, `fix:`, `perf:`, `chore:`, `test:`, `docs:`.
+- A scope may follow the type in parentheses: `feat(judge): add DeTCT heuristic`.
+- For commits with multiple change categories, the first line covers the highest-rank type;
+  enumerate others in the body.
+- Reference issues and pull requests after the first line.
+- Use present tense and imperative mood: "Add feature", not "Added feature" or "Adds feature".
 
-
-Use `git rebase -i` to correct mistakes before merging.
+Use `git rebase -i` to clean up commits before merging.
 
 ### C Style Guide
- - **Indent with tabs**
- - **Tab width is 4**
- - **Indent size is 4**
- - **Align with spaces**
- - **Brace style is K&R**
-   - briefly, this means open brace goes on the same line of constructs except function definition.
- - **Alignment**: contiguous assigments are currently aligned for readability.  this can have obvious
-   detrimental effects in some cases, especially when automated by `clang-format`.  leave a blank
-   or comment line between assignments that should not be aligned.
- - **Pointer declarations**: keep pointer with the variable name, e.g. `int *p, *p2`.
 
-For more thorough style guidelines, see for now `.clang-format`
-feel free to open an issue if something doesn't seem right.
+- **Indent with tabs; tab width and indent size are 4.**
+- **Brace style is K&R** — open brace on the same line as the construct, except for function
+  definitions.
+- **Alignment**: contiguous assignments may be aligned for readability.  Insert a blank or comment
+  line between assignment blocks that should not be aligned together.
+- **Pointer declarations**: pointer with the variable name — `int *p, *p2`.
 
-clang-format runs with `make fmt`.  use it to reduce churn.
-some code is not handled well by clang-format, such as struct array initialization.
-for these, block out manually-formatted code with `// clang-format off|on` like so:
+See `.clang-format` for complete rules.  Run `make fmt` before committing to reduce style churn.
 
-```
+Some constructs (e.g. struct array initializers) are not handled well by clang-format; bracket
+these with `// clang-format off` / `// clang-format on`:
+
+```c
 // clang-format off
 static struct sd_library_fingerprint fingerprints[] = {
-	{
-		"10x-RNA-v2", {
-			{ SD_R1, SD_FWD,  SD_ONLIST, { 0,  0}, {16, 16}, {"cb_10x_737K-august-2016.txt"} },
-			{ SD_I1, SD_FWD,  SD_ONLIST, { 0,  0}, { 8,  8}, {"index7_onlist.txt"} },
-			{ SD_NONE },
-		}
-	},
+    {
+        "10x-RNA-v2", {
+            { SD_R1, SD_FWD,  SD_ONLIST, { 0,  0}, {16, 16}, {"cb_10x_737K-august-2016.txt"} },
+            { SD_I1, SD_FWD,  SD_ONLIST, { 0,  0}, { 8,  8}, {"index7_onlist.txt"} },
+            { SD_NONE },
+        }
+    },
 };
 // clang-format on
 ```
-TODO: more examples
 
- - we currently do not use [Annex K](https://open-std.org/jtc1/sc22/wg14/www/docs/n1967.htm) safe
-   versions of deprecated buffer handling functions
-   because in our use the Annex K interface is redundant with our own checks and bug-prone. 
-   Therefore, these functions (for example strcpy) are not flagged by `clang-tidy`.
-   use appropriate caution when employing deprecated buffer handling functions.
+We do not use [Annex K](https://open-std.org/jtc1/sc22/wg14/www/docs/n1967.htm) safe variants of
+deprecated buffer-handling functions; in our use the interface is redundant with our own checks and
+error-prone.  Use appropriate caution with deprecated buffer-handling functions regardless.
 
- - we disable `clang-diagnostic-missing-field-initializers` because it flags fingerprints with
-   implied 0 sentinel entries.
-
-TODO: other notable linter warnings we disable?
-
+`clang-diagnostic-missing-field-initializers` is suppressed because it fires on fingerprint
+entries with implied zero sentinel fields.
 
 ### Shell Script Style Guide
-use [shellcheck](https://github.com/koalaman/shellcheck) to lint bash scripts.
-this also runs when `make lint`
 
-### asm style guide
-
-### 
+Use [shellcheck](https://github.com/koalaman/shellcheck) to lint shell scripts.  This also runs
+with `make lint`.

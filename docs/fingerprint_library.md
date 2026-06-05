@@ -1,4 +1,12 @@
-extra fingerprint libraries can be loaded at runtime.
+# Fingerprint Library — Out of Scope in Core Mode
+
+Full technology classification via fingerprint libraries is not available in this release.  The
+documentation below describes functionality that will be relevant when broader technology
+classification support is released.
+
+---
+
+Extra fingerprint libraries can be loaded at runtime.
 
 ## Converting from seqspec
 valid seqspec `spec.yaml` can be converted to seq-detective's format using
