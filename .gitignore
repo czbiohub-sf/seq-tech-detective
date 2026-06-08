@@ -21,6 +21,7 @@ cb_*.txt
 *.pyc
 .vscode
 .cache
+.DS_Store
 
 #test data 
 test_data/*
