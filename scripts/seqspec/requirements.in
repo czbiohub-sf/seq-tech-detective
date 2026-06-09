@@ -6,7 +6,7 @@ pyyaml
 # only does local YAML parsing + region indexing and never exercises the
 # vulnerable code paths (no HTTP, no Entrez XML). These floors resolve the
 # alerts to patched versions without bumping seqspec itself.
-requests>=2.32.4
+requests>=2.33.0
 urllib3>=2.7.0
 idna>=3.15
 biopython>=1.87
