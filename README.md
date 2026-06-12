@@ -165,6 +165,12 @@ submission formats (Smart-seq archived as interleaved BAM+CRAM) and DeTCT, whose
 interleave biological and barcode sequence within a single file in a way that resists binary B/T
 classification.
 
+## Authors and maintainers
+
+RNAquarium is developed and maintained by the [Computational Biology Platform](https://biohub.org/comp-biology/) & [Balla Group](https://biohub.org/balla/) at the [Biohub](https://biohub.org).
+
+* **Research Lead & Bioinformatics Teams:** Keir Balla, Duo Peng, Yttria Aniseia
+
 ## License
 
 seq-detective is free and open source software distributed under the BSD 3-clause license except as
