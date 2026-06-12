@@ -170,7 +170,7 @@ classification.
 RNAquarium is developed and maintained by the [Computational Biology Platform](https://biohub.org/comp-biology/) & [Balla Group](https://biohub.org/balla/) at the [Biohub](https://biohub.org).
 
 * **Research Lead Team:** Keir Balla, Duo Peng
-* * **Bioinformatics Team:** Yttria Aniseia, Eric Waltari
+* **Bioinformatics Team:** Yttria Aniseia, Eric Waltari
 
 ## License
 
