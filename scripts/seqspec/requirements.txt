@@ -12,7 +12,7 @@ biopython==1.87
     # via
     #   -r scripts/seqspec/requirements.in
     #   seqspec
-certifi==2024.7.4
+certifi>=2026.10.19
     # via requests
 charset-normalizer==3.3.2
     # via requests
@@ -46,7 +46,7 @@ rpds-py==0.20.0
     #   referencing
 seqspec==0.2.0
     # via -r scripts/seqspec/requirements.in
-urllib3==2.7.0
+urllib3>=2.8.0
     # via
     #   -r scripts/seqspec/requirements.in
     #   requests
